@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Admin Panitia - E-Voting BPD Desa Banyubiru</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- 1. LOGIN OVERLAY (TERTUTUP JIKA BELUM LOGIN) -->
+  <div id="adminLoginOverlay" class="admin-login-overlay">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo-icon">🏛️</div>
+        <h1 class="login-title">PANITIA PEMILIHAN BPD</h1>
+        <p class="login-subtitle">Desa Banyubiru, Kab. Semarang &bull; Periode 2027–2034</p>
+      </div>
+
+      <div id="loginErrorMsg" class="login-error-msg"></div>
+
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label class="form-label" for="loginUsername">Username Admin</label>
+          <input type="text" id="loginUsername" class="form-control" placeholder="admin" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password Admin</label>
+          <input type="password" id="loginPassword" class="form-control" placeholder="••••••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-login">Masuk ke Dashboard</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. STRUKTUR UTAMA DASHBOARD ADMIN -->
+  <div class="admin-app">
+    
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon">🏛️</span>
+        <div>
+          <div class="brand-title">E-VOTING BPD</div>
+          <div class="brand-subtitle">Desa Banyubiru 2027-2034</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-tab="dashboard">
+          <span>📊</span> Dashboard
+        </a>
+        <a class="nav-item" data-tab="rekap">
+          <span>📋</span> Rekap Suara
+        </a>
+        <a class="nav-item" data-tab="pemilih">
+          <span>👥</span> Data Pemilih
+        </a>
+        <a class="nav-item" data-tab="calon">
+          <span>🗳️</span> Data & Foto Calon
+        </a>
+        <a class="nav-item" data-tab="pengaturan">
+          <span>⚙️</span> Pengaturan
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/" target="_blank" style="color: #60a5fa; text-decoration: none; font-size: 0.82rem; display: block; margin-bottom: 12px; text-align: center;">
+          ↗ Buka Halaman Pemilih
+        </a>
+        <button id="btnLogout" class="btn-logout" type="button">
+          🚪 Keluar (Logout)
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin-main">
+      
+      <!-- TOP HEADER -->
+      <header class="admin-header">
+        <div class="header-welcome">
+          <h2>Selamat Datang, Panitia Pemilihan</h2>
+          <p>Portal Resmi Pengawasan & Rekapitulasi Suara BPD Desa Banyubiru &bull; User: <strong id="adminUserLabel">admin</strong></p>
+        </div>
+        <div class="header-actions">
+          <button id="btnRefreshData" class="btn-action" type="button" title="Muat Ulang Data Terbaru">
+            🔄 Refresh
+          </button>
+          <button id="btnExportCsv" class="btn-action btn-action-primary" type="button" title="Unduh Laporan Hasil">
+            📥 Ekspor CSV
+          </button>
+        </div>
+      </header>
+
+      <!-- CONTENT PANES -->
+      <div class="admin-content">
+
+        <!-- ================= TAB 1: DASHBOARD ================= -->
+        <div id="tab-dashboard" class="admin-tab-pane active">
+          
+          <!-- STATS GRID -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue">👥</div>
+              <div>
+                <div class="stat-label">Total Pemilih</div>
+                <div id="statTotalPemilih" class="stat-val">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green">✓</div>
+              <div>
+                <div class="stat-label">Sudah Memilih</div>
+                <div id="statSudahMemilih" class="stat-val">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon yellow">⏳</div>
+              <div>
+                <div class="stat-label">Belum Memilih</div>
+                <div id="statBelumMemilih" class="stat-val">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon purple">🗳️</div>
+              <div>
+                <div class="stat-label">Total Suara Masuk</div>
+                <div id="statTotalSuara" class="stat-val">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon blue">📈</div>
+              <div>
+                <div class="stat-label">Partisipasi Warga</div>
+                <div id="statPartisipasi" class="stat-val">0%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VISUALISASI GRAFIK SUARA PER WILAYAH -->
+          <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 16px; color: #1e293b;">
+            Grafik Perolehan Suara Per Wilayah
+          </h3>
+          <div id="chartsContainer">
+            <!-- Diisi otomatis oleh JavaScript -->
+          </div>
+
+        </div>
+
+        <!-- ================= TAB 2: REKAP SUARA ================= -->
+        <div id="tab-rekap" class="admin-tab-pane">
+          <div class="card-box">
+            <div class="card-box-header">
+              <h3 class="card-box-title">Tabel Rekapitulasi Suara Resmi BPD Banyubiru</h3>
+              <span class="badge badge-info">Semua 9 Wilayah</span>
+            </div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Wilayah / Dusun</th>
+                    <th style="text-align: center;">No Urut</th>
+                    <th>Nama Calon Anggota BPD</th>
+                    <th>Perolehan Suara</th>
+                    <th>Persentase Suara</th>
+                  </tr>
+                </thead>
+                <tbody id="rekapTableBody">
+                  <!-- Diisi otomatis oleh JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 3: DATA PEMILIH ================= -->
+        <div id="tab-pemilih" class="admin-tab-pane">
+          <div class="card-box">
+            <div class="card-box-header" style="flex-wrap: wrap; gap: 12px;">
+              <h3 class="card-box-title">Manajemen Data & Kode Pemilih</h3>
+              <button id="btnOpenGenModal" class="btn-action btn-action-primary" type="button">
+                ➕ Generate Kode Pemilih Baru
+              </button>
+            </div>
+
+            <!-- FILTER BAR -->
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+              <div style="flex: 1; min-width: 200px;">
+                <label class="form-label">Filter Wilayah</label>
+                <select id="filterWilayahPemilih" class="form-control">
+                  <option value="all">-- Semua Wilayah --</option>
+                </select>
+              </div>
+              <div style="width: 180px;">
+                <label class="form-label">Status Memilih</label>
+                <select id="filterStatusPemilih" class="form-control">
+                  <option value="all">Semua Status</option>
+                  <option value="sudah">Sudah Memilih</option>
+                  <option value="belum">Belum Memilih</option>
+                </select>
+              </div>
+              <div style="flex: 1.2; min-width: 220px;">
+                <label class="form-label">Cari Kode / Nama</label>
+                <input type="text" id="searchPemilih" class="form-control" placeholder="Ketik kode pemilih...">
+              </div>
+            </div>
+
+            <!-- TABEL PEMILIH -->
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">No</th>
+                    <th>Kode Pemilih (Token)</th>
+                    <th>Wilayah / Dusun</th>
+                    <th>Status Hak Suara</th>
+                    <th>Waktu Pemberian Suara</th>
+                  </tr>
+                </thead>
+                <tbody id="pemilihTableBody">
+                  <!-- Diisi otomatis oleh JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 4: DATA & FOTO CALON (BARU) ================= -->
+        <div id="tab-calon" class="admin-tab-pane">
+          <div class="card-box">
+            <div class="card-box-header" style="flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 class="card-box-title">Kelola Data & Foto Resmi Calon Anggota BPD</h3>
+                <p style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                  Admin dapat menambahkan foto resmi baru dari HP/Laptop atau tautan URL foto calon.
+                </p>
+              </div>
+              <button id="btnOpenAddCalonModal" class="btn-action btn-action-primary" type="button">
+                ➕ Tambah Calon Baru
+              </button>
+            </div>
+
+            <!-- FILTER WILAYAH CALON -->
+            <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: flex-end;">
+              <div style="width: 280px;">
+                <label class="form-label">Pilih Wilayah / Dusun</label>
+                <select id="filterWilayahCalon" class="form-control">
+                  <option value="all">-- Semua Wilayah --</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- TABEL CALON LENGKAP DENGAN FOTO -->
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">No</th>
+                    <th style="width: 90px; text-align: center;">Foto Calon</th>
+                    <th>Wilayah / Dusun</th>
+                    <th style="width: 70px; text-align: center;">No Urut</th>
+                    <th>Nama Calon</th>
+                    <th>Visi & Misi</th>
+                    <th style="width: 140px; text-align: center;">Kelola Foto & Data</th>
+                  </tr>
+                </thead>
+                <tbody id="calonTableBody">
+                  <!-- Diisi otomatis oleh JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 5: PENGATURAN ================= -->
+        <div id="tab-pengaturan" class="admin-tab-pane">
+          
+          <!-- KUNCI PEMILIHAN -->
+          <div class="card-box">
+            <div class="card-box-header">
+              <h3 class="card-box-title">Penguncian Integritas Data Pemilihan</h3>
+              <span id="lockStatusBadge" class="badge badge-success">🔓 PERUBAHAN DIIZINKAN</span>
+            </div>
+            <p style="font-size: 0.9rem; color: #475569; margin-bottom: 16px;">
+              Jika pemilihan sedang berlangsung, aktifkan kunci pemilihan untuk mencegah penambahan, perubahan, atau penghapusan data calon secara tidak disengaja.
+            </p>
+            <button id="btnToggleLock" class="btn-action btn-action-primary" type="button">
+              Kunci Data Pemilihan
+            </button>
+          </div>
+
+          <!-- DANGER ZONE: RESET SUARA -->
+          <div class="card-box" style="border-left: 5px solid #ef4444;">
+            <div class="card-box-header">
+              <h3 class="card-box-title" style="color: #b91c1c;">Zona Bahaya: Reset Data Pemilihan</h3>
+              <span class="badge badge-warning">Khusus Uji Coba / Reset</span>
+            </div>
+            <p style="font-size: 0.9rem; color: #475569; margin-bottom: 16px;">
+              Fungsi ini akan <strong>MENGHAPUS SELURUH SUARA MASUK</strong> dan mengembalikan status seluruh pemilih menjadi <strong>BELUM MEMILIH</strong>. Gunakan fitur ini hanya sebelum pemilihan resmi dimulai untuk membersihkan data uji coba simulasi.
+            </p>
+            <button id="btnOpenResetModal" class="btn-action btn-action-danger" type="button">
+              ⚠️ Reset Seluruh Data Suara
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL EDIT / TAMBAH FOTO & DATA CALON -->
+  <div id="calonModal" class="admin-modal-backdrop">
+    <div class="admin-modal-box" style="max-width: 540px;">
+      <h3 id="calonModalTitle" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: #1e293b;">
+        Edit Data & Foto Calon
+      </h3>
+      
+      <input type="hidden" id="calonEditId" value="">
+
+      <!-- Preview Foto -->
+      <div style="text-align: center; margin-bottom: 16px;">
+        <label class="form-label" style="text-align: center;">Pratinjau Foto Calon</label>
+        <div style="width: 120px; height: 145px; margin: 0 auto; border-radius: 10px; overflow: hidden; border: 3px solid #d97706; background: #0f2a4a; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <img id="calonModalPhotoPreview" src="/img/candidates/default.svg" alt="Preview Foto" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+      </div>
+
+      <!-- Kolom Upload Foto -->
+      <div class="form-group" style="background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+        <label class="form-label" style="color: #1e3a8a; font-weight: 700;">📸 Unggah / Tambahkan Foto Calon:</label>
+        
+        <!-- Opsi 1: Upload File dari HP/Laptop -->
+        <div style="margin-bottom: 10px;">
+          <span style="font-size: 0.8rem; color: #64748b; display: block; margin-bottom: 4px;">Pilihan 1: Pilih Berkas Gambar dari HP / Komputer</span>
+          <input type="file" id="calonPhotoFileInput" class="form-control" accept="image/*">
+        </div>
+
+        <!-- Opsi 2: Masukkan URL Foto -->
+        <div>
+          <span style="font-size: 0.8rem; color: #64748b; display: block; margin-bottom: 4px;">Pilihan 2: Atau Masukkan Link / URL Foto Web</span>
+          <input type="text" id="calonPhotoUrlInput" class="form-control" placeholder="https://example.com/foto.jpg">
+        </div>
+      </div>
+
+      <div class="form-group" id="calonWilayahGroup">
+        <label class="form-label">Wilayah / Dusun</label>
+        <select id="calonModalWilayahSelect" class="form-control"></select>
+      </div>
+
+      <div style="display: flex; gap: 12px;">
+        <div class="form-group" style="width: 110px;">
+          <label class="form-label">Nomor Urut</label>
+          <input type="number" id="calonModalNomorUrut" class="form-control" min="1" max="99" required>
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">Nama Lengkap Calon</label>
+          <input type="text" id="calonModalNama" class="form-control" placeholder="Nama Calon" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Visi & Misi (Ringkas)</label>
+        <textarea id="calonModalVisi" class="form-control" rows="2" placeholder="Visi dan misi calon anggota BPD..."></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+        <button id="btnCloseCalonModal" class="btn-action" type="button">Batal</button>
+        <button id="btnSaveCalonModal" class="btn-action btn-action-primary" type="button">Simpan Perubahan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GENERATE KODE PEMILIH -->
+  <div id="genModal" class="admin-modal-backdrop">
+    <div class="admin-modal-box">
+      <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 12px; color: #1e293b;">Generate Kode Pemilih Baru</h3>
+      <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">
+        Sistem akan membuat token kode pemilih unik secara otomatis untuk wilayah yang dipilih.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">Pilih Wilayah / Dusun</label>
+        <select id="genWilayahSelect" class="form-control"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Jumlah Kode yang Dibuat</label>
+        <input type="number" id="genJumlahInput" class="form-control" value="20" min="1" max="500">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Prefix Kode (Opsional)</label>
+        <input type="text" id="genPrefixInput" class="form-control" placeholder="Contoh: KRAJAN atau BPD">
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px;">
+        <button id="btnCloseGen" class="btn-action" type="button">Batal</button>
+        <button id="btnSubmitGen" class="btn-action btn-action-primary" type="button">Generate Sekarang</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RESET DATA SUARA (DOUBLE CONFIRMATION + PASSWORD) -->
+  <div id="resetModal" class="admin-modal-backdrop">
+    <div class="admin-modal-box danger-modal">
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: #b91c1c; margin-bottom: 8px;">
+        ⚠️ Konfirmasi Reset Seluruh Suara
+      </h3>
+      <p style="font-size: 0.88rem; color: #475569; margin-bottom: 16px; line-height: 1.5;">
+        Tindakan ini permanen dan akan menghapus seluruh rekaman suara yang telah masuk ke database.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">1. Ketik tepat teks berikut untuk konfirmasi:</label>
+        <div style="background: #f1f5f9; padding: 6px 10px; border-radius: 6px; font-family: monospace; font-weight: 700; color: #0f172a; margin-bottom: 8px; font-size: 0.9rem;">
+          RESET SUARA BANYUBIRU
+        </div>
+        <input type="text" id="resetConfirmText" class="form-control" placeholder="Ketik kalimat di atas...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">2. Masukkan Password Admin:</label>
+        <input type="password" id="resetPassword" class="form-control" placeholder="Password admin Anda">
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+        <button id="btnCloseReset" class="btn-action" type="button">Batal</button>
+        <button id="btnSubmitReset" class="btn-action btn-action-danger" type="button">Ya, Hapus dan Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT DASHBOARD ADMIN -->
+  <script src="js/admin.js"></script>
+</body>
+</html>

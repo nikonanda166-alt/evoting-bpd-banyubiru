@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradFemale" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="skinFemale" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fba86b"/>
+    </linearGradient>
+    <linearGradient id="hijabGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <linearGradient id="blazerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="goldBanner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Latar Belakang Studio Biru -->
+  <rect width="400" height="480" fill="url(#bgGradFemale)"/>
+  <circle cx="200" cy="180" r="140" fill="#ffffff" opacity="0.06"/>
+
+  <!-- Pita Merah Putih Garuda -->
+  <g transform="translate(320, 0)">
+    <polygon points="0,0 80,0 80,20 20,80 0,80" fill="#ef4444"/>
+    <polygon points="0,80 20,80 80,20 80,40 40,80 0,80" fill="#ffffff"/>
+  </g>
+
+  <!-- Pundak & Blazer Formal -->
+  <path d="M70,480 C80,350 120,320 200,320 C280,320 320,350 330,480 Z" fill="url(#blazerGrad)"/>
+  
+  <!-- Kerah Kemeja Putih Dalam -->
+  <polygon points="175,320 225,320 200,390" fill="#f8fafc"/>
+
+  <!-- Kerah Blazer -->
+  <polygon points="150,320 185,410 200,340 175,320" fill="#334155"/>
+  <polygon points="250,320 215,410 200,340 225,320" fill="#334155"/>
+
+  <!-- Pin Bros Emas di Dada -->
+  <circle cx="150" cy="380" r="7" fill="#fbbf24"/>
+
+  <!-- Jilbab Bagian Bawah / Dada -->
+  <path d="M150,260 C140,310 170,350 200,350 C230,350 260,310 250,260 Z" fill="url(#hijabGrad)"/>
+
+  <!-- Wajah -->
+  <ellipse cx="200" cy="195" rx="55" ry="65" fill="url(#skinFemale)"/>
+
+  <!-- Jilbab Utama (Kepala) -->
+  <path d="M135,190 C135,100 155,90 200,90 C245,90 265,100 265,190 C265,240 250,270 200,270 C150,270 135,240 135,190 Z" fill="none" stroke="url(#hijabGrad)" stroke-width="22"/>
+  <path d="M135,180 C135,95 155,85 200,85 C245,85 265,95 265,180 C260,130 240,115 200,115 C160,115 140,130 135,180 Z" fill="url(#hijabGrad)"/>
+
+  <!-- Fitur Wajah Wanita: Alis Rapi, Mata Ramah, Senyum Hangat -->
+  <path d="M165,170 Q178,162 188,168" stroke="#334155" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M212,168 Q222,162 235,170" stroke="#334155" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Mata -->
+  <ellipse cx="178" cy="180" rx="5" ry="6" fill="#0f172a"/>
+  <ellipse cx="222" cy="180" rx="5" ry="6" fill="#0f172a"/>
+  <circle cx="176" cy="178" r="1.5" fill="#ffffff"/>
+  <circle cx="220" cy="178" r="1.5" fill="#ffffff"/>
+  <!-- Hidung Halus -->
+  <path d="M200,185 L197,208 L203,208 Z" fill="#ea580c" opacity="0.5"/>
+  <!-- Senyum Ramah -->
+  <path d="M185,225 Q200,240 215,225" stroke="#be123c" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Blush Pipi Halus -->
+  <ellipse cx="165" cy="205" rx="10" ry="6" fill="#f43f5e" opacity="0.25"/>
+  <ellipse cx="235" cy="205" rx="10" ry="6" fill="#f43f5e" opacity="0.25"/>
+
+  <!-- Badge Calon Resmi Desa Banyubiru -->
+  <rect x="20" y="420" width="360" height="44" rx="10" fill="url(#goldBanner)"/>
+  <text x="200" y="448" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="bold" fill="#0f172a">FOTO RESMI CALON ANGGOTA BPD</text>
+</svg>

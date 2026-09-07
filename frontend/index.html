@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-VOTING BPD DESA BANYUBIRU (2027–2034)</title>
+  <meta name="description" content="Website Resmi Pemilihan Anggota Badan Permusyawaratan Desa (BPD) Desa Banyubiru, Kabupaten Semarang Periode 2027-2034">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- HEADER RESMI PEMILIHAN -->
+  <header class="site-header">
+    <div class="header-content">
+      <div class="logo-badge">🏛️ PEMERINTAH DESA BANYUBIRU</div>
+      <h1 class="site-title">E-VOTING BPD DESA BANYUBIRU</h1>
+      <p class="site-subtitle">Pemilihan Anggota Badan Permusyawaratan Desa (BPD) Periode 2027–2034, Kabupaten Semarang</p>
+    </div>
+  </header>
+
+  <!-- CONTAINER UTAMA -->
+  <main class="main-container">
+
+    <!-- LAYAR SUKSES (MUNCUL SETELAH SUARA BERHASIL DICATAT) -->
+    <section id="successScreen" class="success-screen">
+      <div class="success-icon">✓</div>
+      <h2 class="success-title">Terima Kasih!</h2>
+      <p class="success-desc">Suara Anda telah berhasil dicatat dan diverifikasi di database server.</p>
+      <div id="successVoterWilayah" style="font-weight: 600; color: #1e3a8a; margin-bottom: 24px;"></div>
+      <button id="btnVoteAgain" class="btn-primary" type="button">Kembali ke Halaman Utama</button>
+    </section>
+
+    <!-- SECTION VOTING -->
+    <div id="votingSection">
+      
+      <!-- PANDUAN LANGKAH PEMILIH -->
+      <section class="steps-card">
+        <h2 class="steps-title">📋 Tata Cara Pemberian Suara:</h2>
+        <div class="steps-list">
+          <div class="step-item">
+            <strong>1. Pilih Wilayah / Dusun</strong>
+            Pilih wilayah atau dusun tempat Anda terdaftar.
+          </div>
+          <div class="step-item">
+            <strong>2. Masukkan Kode Pemilih</strong>
+            Ketik kode pemilih resmi yang diberikan panitia.
+          </div>
+          <div class="step-item">
+            <strong>3. Tentukan Pilihan Anda</strong>
+            Pilih satu calon anggota BPD pilihan Anda.
+          </div>
+          <div class="step-item">
+            <strong>4. Konfirmasi Suara</strong>
+            Periksa kembali foto dan nama sebelum mengirim suara.
+          </div>
+        </div>
+      </section>
+
+      <!-- BAGIAN 1: PILIH WILAYAH / DUSUN -->
+      <section>
+        <h2 class="section-title">📍 1. Pilih Wilayah / Dusun Pemilihan:</h2>
+        <div id="wilayahSelectorGrid" class="wilayah-selector-grid">
+          <!-- Tombol-tombol wilayah akan diisi otomatis oleh JavaScript -->
+        </div>
+      </section>
+
+      <!-- BANNER JADWAL & LOKASI -->
+      <section id="scheduleBanner" class="schedule-banner">
+        <div class="schedule-info">
+          <div id="scheduleWilayahTitle" class="schedule-wilayah-title">KETERWAKILAN PEREMPUAN</div>
+          <div class="schedule-detail">
+            <span id="scheduleWaktu">📅 Memuat jadwal...</span>
+            <span id="scheduleLokasi">📍 Memuat lokasi...</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- BAGIAN 2: INPUT KODE PEMILIH -->
+      <section class="token-section">
+        <h2 class="section-title" style="font-size: 1.1rem; margin-bottom: 6px;">🔑 2. Masukkan Kode Pemilih:</h2>
+        <p style="font-size: 0.85rem; color: #64748b;">
+          Kode Pemilih diberikan oleh Panitia Pemilihan BPD Dusun Anda. Kode hanya dapat digunakan 1 (satu) kali.
+        </p>
+        <div class="token-form-wrap">
+          <input 
+            type="text" 
+            id="voterCodeInput" 
+            class="token-input" 
+            placeholder="Contoh: PEREMPUAN-01" 
+            autocomplete="off" 
+            spellcheck="false"
+          >
+          <button id="btnVerifyCode" class="btn-primary" type="button">
+            🔍 Verifikasi Kode
+          </button>
+        </div>
+        <div id="tokenStatusMsg" class="token-status-msg"></div>
+      </section>
+
+      <!-- BAGIAN 3: DAFTAR CALON -->
+      <section class="candidates-container">
+        <h2 class="section-title">🗳️ 3. Surat Suara & Foto Calon Anggota BPD:</h2>
+        <div id="calonGrid" class="candidate-grid">
+          <!-- Card calon lengkap dengan foto akan di-render otomatis oleh JavaScript -->
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL KONFIRMASI PEMILIHAN -->
+  <div id="confirmModalBackdrop" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-icon">🗳️</div>
+      <h3 class="modal-title">Konfirmasi Pilihan Anda</h3>
+      <p class="modal-text">Pastikan foto dan nama calon yang Anda pilih sudah benar. Suara yang telah dikirim tidak dapat diubah kembali.</p>
+      
+      <div class="modal-candidate-highlight">
+        <img id="modalCandidatePhoto" class="modal-candidate-photo-thumb" src="/img/candidates/default.svg" alt="Foto Calon">
+        <div>
+          <div id="modalCandidateName" class="m-name">Nama Calon</div>
+          <div id="modalCandidateWilayah" class="m-wilayah">Wilayah</div>
+        </div>
+      </div>
+
+      <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px;">
+        Apakah Anda yakin ingin memberikan suara untuk calon di atas?
+      </p>
+
+      <div class="modal-buttons">
+        <button id="btnCancelVote" class="btn-secondary" type="button">Batal / Periksa</button>
+        <button id="btnConfirmSubmitVote" class="btn-confirm-vote" type="button">Ya, Kirim Suara</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <p>Panitia Pengisian Anggota BPD Desa Banyubiru Periode 2027–2034</p>
+    <p style="margin-top: 6px; font-size: 0.78rem;">
+      Kecamatan Banyubiru, Kabupaten Semarang, Jawa Tengah &bull; 
+      <a href="/admin">Portal Admin / Panitia</a>
+    </p>
+  </footer>
+
+  <!-- SCRIPT APLIKASI -->
+  <script src="js/app.js"></script>
+</body>
+</html>

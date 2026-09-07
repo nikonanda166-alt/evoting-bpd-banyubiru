@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="skinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fba86b"/>
+    </linearGradient>
+    <linearGradient id="goldBadge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background Studio -->
+  <rect width="400" height="480" fill="url(#bgGrad)"/>
+  <circle cx="200" cy="180" r="150" fill="#ffffff" opacity="0.05"/>
+  
+  <!-- Pita Merah Putih Pojok Kanan Atas -->
+  <g transform="translate(320, 0)">
+    <polygon points="0,0 80,0 80,20 20,80 0,80" fill="#ef4444"/>
+    <polygon points="0,80 20,80 80,20 80,40 40,80 0,80" fill="#ffffff"/>
+  </g>
+
+  <!-- Tubuh / Jas Formal -->
+  <path d="M70,480 C80,360 130,320 200,320 C270,320 320,360 330,480 Z" fill="#1e293b"/>
+  <!-- Kemeja Putih -->
+  <polygon points="175,320 225,320 205,420 195,420" fill="#f8fafc"/>
+  <!-- Dasi Merah / Emas -->
+  <polygon points="195,335 205,335 210,410 200,430 190,410" fill="#b91c1c"/>
+  <!-- Kerah Jas -->
+  <polygon points="150,320 180,390 195,335 175,320" fill="#334155"/>
+  <polygon points="250,320 220,390 205,335 225,320" fill="#334155"/>
+
+  <!-- Leher -->
+  <rect x="180" y="240" width="40" height="90" fill="url(#skinGrad)" rx="10"/>
+
+  <!-- Kepala & Wajah -->
+  <ellipse cx="200" cy="190" rx="65" ry="80" fill="url(#skinGrad)"/>
+
+  <!-- Rambut / Siluet Pria -->
+  <path d="M135,180 C135,115 160,110 200,110 C240,110 265,115 265,180 C250,150 230,135 200,135 C170,135 150,150 135,180 Z" fill="#0f172a"/>
+
+  <!-- Mata, Alis, Hidung, Senyum -->
+  <path d="M165,160 Q178,155 188,160" stroke="#0f172a" stroke-width="3" fill="none"/>
+  <path d="M212,160 Q222,155 235,160" stroke="#0f172a" stroke-width="3" fill="none"/>
+  <circle cx="178" cy="175" r="5" fill="#0f172a"/>
+  <circle cx="222" cy="175" r="5" fill="#0f172a"/>
+  <path d="M200,175 L196,205 L204,205 Z" fill="#ea580c" opacity="0.6"/>
+  <path d="M185,225 Q200,240 215,225" stroke="#991b1b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Bingkai Bawah Nama -->
+  <rect x="20" y="420" width="360" height="44" rx="10" fill="url(#goldBadge)"/>
+  <text x="200" y="448" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">CALON ANGGOTA BPD RESMI</text>
+</svg>

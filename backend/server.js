@@ -808,6 +808,111 @@ app.delete('/api/admin/pemilih/:kode', requireAdminAuth, async (req, res) => {
   }
 });
 
+// Edit Data Pemilih (Nama / Wilayah)
+app.put('/api/admin/pemilih/:kode', requireAdminAuth, async (req, res) => {
+  try {
+    const cleanKode = String(req.params.kode).trim().toUpperCase();
+    const { nama_pemilih, wilayah_id } = req.body;
+    const wId = parseInt(wilayah_id, 10);
+    const cleanNama = String(nama_pemilih || '').trim();
+
+    if (!cleanNama || isNaN(wId)) {
+      return res.status(400).json({ success: false, message: 'Nama pemilih dan wilayah wajib diisi.' });
+    }
+
+    const state = getSharedState();
+    if (!state.customVoters) state.customVoters = [];
+    const idx = state.customVoters.findIndex(p => p.kode_pemilih.toUpperCase() === cleanKode);
+    if (idx !== -1) {
+      state.customVoters[idx].nama_pemilih = cleanNama;
+      state.customVoters[idx].wilayah_id = wId;
+      saveSharedState(state);
+    } else {
+      state.customVoters.push({
+        id: Date.now(),
+        kode_pemilih: cleanKode,
+        wilayah_id: wId,
+        nama_pemilih: cleanNama,
+        sudah_memilih: 0,
+        waktu_memilih: null
+      });
+      saveSharedState(state);
+    }
+
+    try {
+      await dbRun(
+        'UPDATE pemilih SET nama_pemilih = ?, wilayah_id = ? WHERE UPPER(kode_pemilih) = ?',
+        [cleanNama, wId, cleanKode]
+      );
+    } catch (dbErr) {
+      console.warn('DB update pemilih warning:', dbErr.message);
+    }
+
+    res.json({ success: true, message: `Data pemilih "${cleanKode}" berhasil diperbarui.` });
+  } catch (err) {
+    console.error('Error update pemilih:', err);
+    res.status(500).json({ success: false, message: 'Gagal memperbarui data pemilih.' });
+  }
+});
+
+// Bulk Sinkronisasi / Simpan Permanen DPT dari Admin
+app.post('/api/admin/pemilih/bulk-sync', requireAdminAuth, async (req, res) => {
+  try {
+    const { voters } = req.body;
+    if (!Array.isArray(voters)) {
+      return res.status(400).json({ success: false, message: 'Format data voters tidak valid.' });
+    }
+
+    const state = getSharedState();
+    if (!state.customVoters) state.customVoters = [];
+    const map = new Map(state.customVoters.map(v => [v.kode_pemilih.toUpperCase(), v]));
+
+    for (const v of voters) {
+      if (!v.kode_pemilih) continue;
+      const cleanKode = String(v.kode_pemilih).trim().toUpperCase();
+      const wId = parseInt(v.wilayah_id, 10) || 1;
+      const cleanNama = String(v.nama_pemilih || '').trim() || `Warga Pemilih Wilayah ${wId}`;
+      const sudah = v.sudah_memilih ? 1 : 0;
+      const waktu = v.waktu_memilih || null;
+
+      map.set(cleanKode, {
+        id: v.id || Date.now(),
+        kode_pemilih: cleanKode,
+        wilayah_id: wId,
+        nama_pemilih: cleanNama,
+        sudah_memilih: sudah,
+        waktu_memilih: waktu
+      });
+
+      try {
+        await dbRun(
+          'INSERT INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih) VALUES (?, ?, ?, ?) ON CONFLICT(kode_pemilih) DO UPDATE SET wilayah_id=excluded.wilayah_id, nama_pemilih=excluded.nama_pemilih',
+          [cleanKode, wId, cleanNama, sudah]
+        );
+      } catch (dbErr) {
+        try {
+          await dbRun(
+            'UPDATE pemilih SET nama_pemilih = ?, wilayah_id = ? WHERE UPPER(kode_pemilih) = ?',
+            [cleanNama, wId, cleanKode]
+          );
+        } catch (e) {}
+      }
+    }
+
+    state.customVoters = Array.from(map.values());
+    saveSharedState(state);
+
+    res.json({
+      success: true,
+      message: `Berhasil menyinkronkan ${voters.length} data pemilih secara permanen.`,
+      total: state.customVoters.length
+    });
+  } catch (err) {
+    console.error('Error bulk sync pemilih:', err);
+    res.status(500).json({ success: false, message: 'Gagal sinkronisasi data pemilih.' });
+  }
+});
+
 // Generate Kode Pemilih Baru Secara Massal
 app.post('/api/admin/generate-pemilih', requireAdminAuth, async (req, res) => {
   try {

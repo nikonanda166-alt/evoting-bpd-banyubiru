@@ -103,7 +103,10 @@
           <h2>Selamat Datang, Panitia Pemilihan</h2>
           <p>Portal Resmi Pengawasan & Rekapitulasi Suara BPD Desa Banyubiru &bull; User: <strong id="adminUserLabel">admin</strong></p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button id="btnSaveAllData" class="btn-action" type="button" style="background:#16a34a; color:#ffffff; font-weight:700; border:none; box-shadow:0 2px 4px rgba(22,163,74,0.35);" title="Simpan Permanen Seluruh Perubahan">
+            💾 Simpan Seluruh Data
+          </button>
           <button id="btnRefreshData" class="btn-action" type="button" title="Muat Ulang Data Terbaru">
             🔄 Refresh
           </button>
@@ -205,11 +208,24 @@
                 </p>
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button id="btnSaveDpt" class="btn-action" style="background:#16a34a; color:#fff; font-weight:700; border:none; box-shadow: 0 2px 4px rgba(22,163,74,0.3);" type="button" title="Simpan Permanen Data Pemilih ke Server & Browser">
+                  💾 Simpan DPT
+                </button>
+                <button id="btnBackupDpt" class="btn-action" style="background:#0284c7; color:#fff; font-weight:600; border:none;" type="button" title="Unduh File Cadangan DPT ke Komputer/HP (Jaminan 100% Tidak Hilang)">
+                  📥 Unduh / Backup DPT
+                </button>
+                <button id="btnRestoreDptTrigger" class="btn-action" style="background:#475569; color:#fff; font-weight:600; border:none;" type="button" title="Pulihkan Data DPT dari File Backup">
+                  📤 Pulihkan / Import DPT
+                </button>
+                <input type="file" id="dptFileInput" accept=".json" style="display: none;">
+                <button id="btnPrintTokens" class="btn-action" style="background:#d97706; color:#fff; font-weight:700; border:none;" type="button" title="Cetak Kartu Kupon / Token Undi untuk Pemilih">
+                  🖨️ Cetak Kartu Token Undi
+                </button>
                 <button id="btnOpenAddPemilihModal" class="btn-action btn-action-primary" type="button">
-                  ➕ Tambah 1 Pemilih Manual
+                  ➕ Tambah 1 Pemilih
                 </button>
                 <button id="btnOpenGenModal" class="btn-action btn-action-secondary" type="button" style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1;">
-                  ⚡ Generate Kode Massal
+                  ⚡ Generate Massal
                 </button>
               </div>
             </div>
@@ -308,6 +324,39 @@
         <!-- ================= TAB 5: PENGATURAN ================= -->
         <div id="tab-pengaturan" class="admin-tab-pane">
           
+          <!-- PENGATURAN UMUM & KETAHANAN DATA -->
+          <div class="card-box">
+            <div class="card-box-header">
+              <h3 class="card-box-title">⚙️ Konfigurasi & Ketahanan Penyimpanan Data (1 Bulan+)</h3>
+              <span class="badge badge-info">Sistem Siap Digunakan</span>
+            </div>
+            <p style="font-size: 0.9rem; color: #475569; margin-bottom: 16px;">
+              Konfigurasikan detail pemilihan resmi BPD Desa Banyubiru. Seluruh data token dan calon akan tersimpan secara terpusat untuk keperluan pencetakan kupon undian panitia.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px;">
+              <div>
+                <label class="form-label" for="settingNamaPemilihan">Nama Kegiatan Pemilihan</label>
+                <input type="text" id="settingNamaPemilihan" class="form-control" value="Pemilihan Anggota BPD Desa Banyubiru Periode 2027–2034">
+              </div>
+              <div>
+                <label class="form-label" for="settingMasaToken">Masa Aktif Token Undi Pemilih</label>
+                <select id="settingMasaToken" class="form-control">
+                  <option value="30" selected>30 Hari (1 Bulan Penuh - Direkomendasikan)</option>
+                  <option value="60">60 Hari (2 Bulan)</option>
+                  <option value="90">90 Hari (3 Bulan)</option>
+                  <option value="365">Permanen (1 Tahun)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="settingPesanPengumuman">Maklumat / Pesan Panitia untuk Warga Pemilih</label>
+              <textarea id="settingPesanPengumuman" class="form-control" rows="2" placeholder="Gunakan hak suara Anda secara jujur, adil, dan rahasia demi masa depan Desa Banyubiru."></textarea>
+            </div>
+            <button id="btnSaveSettings" class="btn-action" style="background:#16a34a; color:#fff; font-weight:700; border:none; padding:10px 20px; box-shadow:0 2px 4px rgba(22,163,74,0.3);" type="button">
+              💾 Simpan Pengaturan
+            </button>
+          </div>
+
           <!-- KUNCI PEMILIHAN -->
           <div class="card-box">
             <div class="card-box-header">
@@ -501,6 +550,71 @@
       <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px;">
         <button id="btnCloseAddPemilih" class="btn-action" type="button">Batal</button>
         <button id="btnSubmitAddPemilih" class="btn-action btn-action-primary" type="button">Simpan Pemilih</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT PEMILIH -->
+  <div id="editPemilihModal" class="admin-modal-backdrop">
+    <div class="admin-modal-box" style="max-width: 500px;">
+      <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: #1e293b;">
+        ✏️ Edit Data Pemilih
+      </h3>
+      <input type="hidden" id="editPemilihOriginalKode" value="">
+      
+      <div class="form-group">
+        <label class="form-label" for="editPemilihKodeInput">Kode Pemilih / Token</label>
+        <input type="text" id="editPemilihKodeInput" class="form-control" style="font-family: monospace; font-weight: 800; background: #f8fafc;" readonly>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="editPemilihWilayahSelect">Wilayah / Dusun Pemilihan</label>
+        <select id="editPemilihWilayahSelect" class="form-control"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="editPemilihNamaInput">Nama Lengkap Pemilih</label>
+        <input type="text" id="editPemilihNamaInput" class="form-control" placeholder="Nama warga" required>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px;">
+        <button id="btnCloseEditPemilih" class="btn-action" type="button">Batal</button>
+        <button id="btnSubmitEditPemilih" class="btn-action btn-action-primary" style="background:#16a34a; border:none;" type="button">💾 Simpan Perubahan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CETAK KARTU TOKEN UNDI -->
+  <div id="printTokenModal" class="admin-modal-backdrop">
+    <div class="admin-modal-box" style="max-width: 860px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
+        <div>
+          <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin: 0;">
+            🖨️ Cetak Kartu Kupon Token Undi Pemilih
+          </h3>
+          <p style="font-size: 0.82rem; color: #64748b; margin: 2px 0 0 0;">
+            Cetak kartu fisik berisi token hak suara untuk dibagikan / diundi kepada warga pemilih.
+          </p>
+        </div>
+        <button id="btnClosePrintModal" class="btn-action" style="padding: 6px 12px;" type="button">✖ Tutup</button>
+      </div>
+
+      <!-- Controls Filter Cetak -->
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: flex-end; background: #f8fafc; padding: 12px; border-radius: 8px;">
+        <div style="flex: 1; min-width: 200px;">
+          <label class="form-label" style="margin-bottom: 4px;">Pilih Wilayah / Dusun:</label>
+          <select id="printFilterWilayah" class="form-control"></select>
+        </div>
+        <div>
+          <button id="btnExecutePrint" class="btn-action" style="background: #16a34a; color: #fff; font-weight: 700; border: none; padding: 10px 20px; box-shadow: 0 2px 4px rgba(22,163,74,0.3);" type="button">
+            🖨️ Cetak / Print Sekarang (A4 / PDF)
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview Kartu Cetak -->
+      <div id="printPreviewContainer" style="flex: 1; overflow-y: auto; background: #f1f5f9; padding: 16px; border-radius: 8px; border: 1px solid #cbd5e1;">
+        <!-- Diisi otomatis oleh JavaScript -->
       </div>
     </div>
   </div>

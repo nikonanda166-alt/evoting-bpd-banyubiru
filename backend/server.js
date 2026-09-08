@@ -711,12 +711,20 @@ app.get('/api/admin/pemilih', requireAdminAuth, async (req, res) => {
     let pemilihList = await dbAll(sql, params);
     if (!pemilihList) pemilihList = [];
 
-    // Gabungkan dengan pemilih di Shared State
     const state = getSharedState();
+    const deletedSet = new Set((state.deletedVoters || []).map(c => String(c).toUpperCase()));
+
+    // Filter daftar pemilih agar yang sudah dihapus tidak muncul lagi
+    if (deletedSet.size > 0) {
+      pemilihList = pemilihList.filter(p => !deletedSet.has(p.kode_pemilih.toUpperCase()));
+    }
+
+    // Gabungkan dengan pemilih di Shared State
     if (state.customVoters && state.customVoters.length > 0) {
       const existingCodes = new Set(pemilihList.map(p => p.kode_pemilih.toUpperCase()));
       for (const cv of state.customVoters) {
-        if (!existingCodes.has(cv.kode_pemilih.toUpperCase())) {
+        const codeUpper = cv.kode_pemilih.toUpperCase();
+        if (!existingCodes.has(codeUpper) && !deletedSet.has(codeUpper)) {
           if (!wilayah_id || wilayah_id === 'all' || cv.wilayah_id === parseInt(wilayah_id, 10)) {
             const wObj = FALLBACK_WILAYAH.find(w => w.id === cv.wilayah_id);
             pemilihList.unshift({
@@ -750,6 +758,10 @@ app.post('/api/admin/pemilih', requireAdminAuth, async (req, res) => {
     // 1. Simpan ke Shared State (Langsung aktif untuk HP pemilih saat itu juga)
     const state = getSharedState();
     if (!state.customVoters) state.customVoters = [];
+    if (!state.deletedVoters) state.deletedVoters = [];
+    // Hapus dari daftar hitam terhapus jika didaftarkan kembali
+    state.deletedVoters = state.deletedVoters.filter(c => c !== cleanKode);
+
     const existsInState = state.customVoters.some(p => p.kode_pemilih.toUpperCase() === cleanKode);
     if (existsInState) {
       return res.status(400).json({ success: false, message: `Kode Pemilih "${cleanKode}" sudah terdaftar.` });
@@ -790,12 +802,16 @@ app.delete('/api/admin/pemilih/:kode', requireAdminAuth, async (req, res) => {
   try {
     const cleanKode = String(req.params.kode).trim().toUpperCase();
 
-    // Hapus dari Shared State
+    // Hapus dari Shared State dan tandai di deletedVoters agar tidak muncul lagi
     const state = getSharedState();
+    if (!state.deletedVoters) state.deletedVoters = [];
+    if (!state.deletedVoters.includes(cleanKode)) {
+      state.deletedVoters.push(cleanKode);
+    }
     if (state.customVoters) {
       state.customVoters = state.customVoters.filter(p => p.kode_pemilih.toUpperCase() !== cleanKode);
-      saveSharedState(state);
     }
+    saveSharedState(state);
 
     try {
       await dbRun('DELETE FROM pemilih WHERE UPPER(kode_pemilih) = ?', [cleanKode]);
@@ -805,6 +821,82 @@ app.delete('/api/admin/pemilih/:kode', requireAdminAuth, async (req, res) => {
   } catch (err) {
     console.error('Error hapus pemilih:', err);
     res.status(500).json({ success: false, message: 'Gagal menghapus data pemilih.' });
+  }
+});
+
+// Hapus Massal Pemilih (Tandai yang akan dihapus / Hapus Semua)
+app.post('/api/admin/pemilih/bulk-delete', requireAdminAuth, async (req, res) => {
+  try {
+    const { codes, all, wilayah_id } = req.body;
+    const state = getSharedState();
+    if (!state.customVoters) state.customVoters = [];
+    if (!state.deletedVoters) state.deletedVoters = [];
+
+    // Opsi 1: Hapus Semua Pemilih (atau per Wilayah)
+    if (all) {
+      const wId = wilayah_id && wilayah_id !== 'all' ? parseInt(wilayah_id, 10) : null;
+      if (wId) {
+        const toDelete = state.customVoters.filter(p => p.wilayah_id === wId).map(p => p.kode_pemilih.toUpperCase());
+        toDelete.forEach(c => {
+          if (!state.deletedVoters.includes(c)) state.deletedVoters.push(c);
+        });
+        state.customVoters = state.customVoters.filter(p => p.wilayah_id !== wId);
+        try {
+          const dbVoters = await dbAll('SELECT kode_pemilih FROM pemilih WHERE wilayah_id = ?', [wId]);
+          if (dbVoters) {
+            dbVoters.forEach(v => {
+              const c = v.kode_pemilih.toUpperCase();
+              if (!state.deletedVoters.includes(c)) state.deletedVoters.push(c);
+            });
+          }
+          await dbRun('DELETE FROM pemilih WHERE wilayah_id = ?', [wId]);
+        } catch (e) {}
+        saveSharedState(state);
+        return res.json({ success: true, message: 'Seluruh pemilih pada wilayah terpilih berhasil dihapus.' });
+      } else {
+        try {
+          const dbVoters = await dbAll('SELECT kode_pemilih FROM pemilih');
+          if (dbVoters) {
+            dbVoters.forEach(v => {
+              const c = v.kode_pemilih.toUpperCase();
+              if (!state.deletedVoters.includes(c)) state.deletedVoters.push(c);
+            });
+          }
+          await dbRun('DELETE FROM pemilih');
+        } catch (e) {}
+        state.customVoters = [];
+        saveSharedState(state);
+        return res.json({ success: true, message: 'Seluruh data pemilih dalam DPT berhasil dihapus total.' });
+      }
+    }
+
+    // Opsi 2: Hapus Daftar Kode yang Ditandai
+    if (Array.isArray(codes) && codes.length > 0) {
+      const cleanCodes = codes.map(c => String(c).trim().toUpperCase()).filter(Boolean);
+      cleanCodes.forEach(c => {
+        if (!state.deletedVoters.includes(c)) state.deletedVoters.push(c);
+      });
+      const deleteSet = new Set(cleanCodes);
+      state.customVoters = state.customVoters.filter(p => !deleteSet.has(p.kode_pemilih.toUpperCase()));
+      saveSharedState(state);
+
+      for (const code of cleanCodes) {
+        try {
+          await dbRun('DELETE FROM pemilih WHERE UPPER(kode_pemilih) = ?', [code]);
+        } catch (e) {}
+      }
+
+      return res.json({
+        success: true,
+        message: `Berhasil menghapus ${cleanCodes.length} pemilih terpilih dari DPT.`,
+        count: cleanCodes.length
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Tidak ada pemilih yang dipilih untuk dihapus.' });
+  } catch (err) {
+    console.error('Error bulk delete pemilih:', err);
+    res.status(500).json({ success: false, message: 'Gagal melakukan penghapusan massal pemilih.' });
   }
 });
 
@@ -865,6 +957,7 @@ app.post('/api/admin/pemilih/bulk-sync', requireAdminAuth, async (req, res) => {
 
     const state = getSharedState();
     if (!state.customVoters) state.customVoters = [];
+    if (!state.deletedVoters) state.deletedVoters = [];
     const map = new Map(state.customVoters.map(v => [v.kode_pemilih.toUpperCase(), v]));
 
     for (const v of voters) {
@@ -874,6 +967,9 @@ app.post('/api/admin/pemilih/bulk-sync', requireAdminAuth, async (req, res) => {
       const cleanNama = String(v.nama_pemilih || '').trim() || `Warga Pemilih Wilayah ${wId}`;
       const sudah = v.sudah_memilih ? 1 : 0;
       const waktu = v.waktu_memilih || null;
+
+      // Hapus dari deletedVoters
+      state.deletedVoters = state.deletedVoters.filter(c => c !== cleanKode);
 
       map.set(cleanKode, {
         id: v.id || Date.now(),
@@ -929,12 +1025,18 @@ app.post('/api/admin/generate-pemilih', requireAdminAuth, async (req, res) => {
 
     const pre = (prefix && prefix.trim() !== '') ? prefix.trim().toUpperCase() : `W${wId}`;
     const generated = [];
+    const generatedVotersList = [];
     const state = getSharedState();
     if (!state.customVoters) state.customVoters = [];
+    if (!state.deletedVoters) state.deletedVoters = [];
 
     for (let i = 0; i < qty; i++) {
       const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
       const code = `${pre}-${randomSuffix}`;
+      
+      // Hapus dari deletedVoters jika ada
+      state.deletedVoters = state.deletedVoters.filter(c => c !== code);
+
       try {
         await dbRun(
           'INSERT INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih) VALUES (?, ?, ?)',
@@ -942,15 +1044,18 @@ app.post('/api/admin/generate-pemilih', requireAdminAuth, async (req, res) => {
         );
       } catch (e) {}
 
-      state.customVoters.push({
+      const vObj = {
         id: Date.now() + i,
         kode_pemilih: code,
         wilayah_id: wId,
+        nama_wilayah: namaWilayah,
         nama_pemilih: `Pemilih ${namaWilayah}`,
         sudah_memilih: 0,
         waktu_memilih: null
-      });
+      };
+      state.customVoters.push(vObj);
       generated.push(code);
+      generatedVotersList.push(vObj);
     }
     saveSharedState(state);
 
@@ -958,7 +1063,8 @@ app.post('/api/admin/generate-pemilih', requireAdminAuth, async (req, res) => {
       success: true,
       message: `Berhasil menambahkan ${generated.length} kode pemilih baru untuk wilayah ${namaWilayah}.`,
       count: generated.length,
-      sample_codes: generated.slice(0, 10)
+      sample_codes: generated.slice(0, 10),
+      voters: generatedVotersList
     });
   } catch (err) {
     console.error('Error generate pemilih:', err);

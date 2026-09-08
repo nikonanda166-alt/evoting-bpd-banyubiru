@@ -172,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 2. Sinkronisasi data di background secara senyap (maksimal 2 detik)
   syncWilayahBackground();
+  syncPublicData();
 });
 
 let dom = {};
@@ -263,6 +264,62 @@ async function syncWilayahBackground() {
   }
 }
 
+// 1B. Sinkronisasi Foto Calon & DPT Baru dari Server ke Browser Pemilih
+async function syncPublicData() {
+  try {
+    const res = await fetchWithTimeout('/api/public-sync', {}, 2500);
+    if (!res.ok) return;
+    const result = await res.json();
+    if (result.success) {
+      let photoChanged = false;
+      // 1. Sinkronkan foto calon yang diupdate admin ke LocalStorage browser pemilih
+      if (result.calonPhotos && typeof result.calonPhotos === 'object') {
+        for (const [cId, foto] of Object.entries(result.calonPhotos)) {
+          if (foto && foto.trim() !== '') {
+            try {
+              localStorage.setItem('banyubiru_calon_foto_' + cId, foto);
+              photoChanged = true;
+            } catch (e) {}
+          }
+        }
+      }
+
+      // 2. Sinkronkan pemilih baru yang ditambahkan admin ke daftar pemilih lokal
+      if (Array.isArray(result.customVoters) && result.customVoters.length > 0) {
+        const list = getLocalPemilihList();
+        const existingCodes = new Set(list.map(p => p.kode_pemilih.toUpperCase()));
+        let voterChanged = false;
+
+        for (const cv of result.customVoters) {
+          if (!existingCodes.has(cv.kode_pemilih.toUpperCase())) {
+            const wObj = LOCAL_WILAYAH.find(w => w.id === cv.wilayah_id) || { nama_wilayah: 'Wilayah ' + cv.wilayah_id };
+            list.unshift({
+              id: Date.now() + Math.random(),
+              kode_pemilih: cv.kode_pemilih.toUpperCase(),
+              wilayah_id: cv.wilayah_id,
+              nama_wilayah: wObj.nama_wilayah,
+              nama_pemilih: cv.nama_pemilih,
+              sudah_memilih: cv.sudah_memilih || 0,
+              waktu_memilih: null
+            });
+            existingCodes.add(cv.kode_pemilih.toUpperCase());
+            voterChanged = true;
+          }
+        }
+
+        if (voterChanged) {
+          saveLocalPemilihList(list);
+        }
+      }
+
+      // Perbarui tampilan calon di layar jika foto baru terdeteksi
+      if (photoChanged && appState.selectedWilayahId) {
+        switchWilayah(appState.selectedWilayahId);
+      }
+    }
+  } catch (err) {}
+}
+
 // Render tombol-tombol pemilihan wilayah
 function renderWilayahButtons(wilayahList) {
   if (!dom.wilayahGrid) return;
@@ -345,6 +402,13 @@ async function syncCalonFromServer(wilayahId) {
     if (!res.ok) return;
     const result = await res.json();
     if (result.success && Array.isArray(result.calon) && result.calon.length > 0) {
+      // Simpan foto resmi dari server ke localStorage browser ini
+      result.calon.forEach((c) => {
+        if (c.foto && c.foto.trim() !== '') {
+          try { localStorage.setItem('banyubiru_calon_foto_' + c.id, c.foto); } catch (e) {}
+        }
+      });
+
       // Hanya re-render jika pemilih masih di wilayah ini
       if (appState.selectedWilayahId === wilayahId) {
         const mergedCalon = result.calon.map((c) => {
@@ -354,7 +418,9 @@ async function syncCalonFromServer(wilayahId) {
           if (customDataStr) {
             try { Object.assign(item, JSON.parse(customDataStr)); } catch (e) {}
           }
-          if (customFoto) {
+          if (c.foto && c.foto.trim() !== '') {
+            item.foto = c.foto;
+          } else if (customFoto) {
             item.foto = customFoto;
           }
           return item;
@@ -520,39 +586,40 @@ async function verifyAndOpenConfirmModal(code, calon) {
     dom.btnVerifyToken.disabled = true;
     dom.btnVerifyToken.textContent = 'Memeriksa...';
 
-    if (appState.isServerConnected) {
-      const res = await fetchWithTimeout('/api/verify-voter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kode_pemilih: cleanCode,
-          wilayah_id: appState.selectedWilayahId
-        })
-      }, 3500);
+    const res = await fetchWithTimeout('/api/verify-voter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kode_pemilih: cleanCode,
+        wilayah_id: appState.selectedWilayahId
+      })
+    }, 3500);
 
-      const data = await res.json();
-      dom.btnVerifyToken.disabled = false;
-      dom.btnVerifyToken.textContent = 'Verifikasi Kode';
+    const data = await res.json();
+    dom.btnVerifyToken.disabled = false;
+    dom.btnVerifyToken.textContent = 'Verifikasi Kode';
 
-      if (!data.success) {
-        // REJECT KERAS: Kode ditolak oleh server database
-        showTokenMessage(data.message, 'error');
-        appState.isCodeVerified = false;
-        return;
-      }
-
+    if (data.success && data.data) {
       // Valid di server
       appState.isCodeVerified = true;
       appState.voterCode = cleanCode;
       showTokenMessage(`✓ Kode Terdaftar: ${data.data.nama_pemilih || 'Warga'} (${data.data.wilayah_nama})`, 'success');
       openConfirmModal(calon);
       return;
+    } else if (data.message && data.message.includes('SUDAH DIGUNAKAN')) {
+      showTokenMessage(data.message, 'error');
+      appState.isCodeVerified = false;
+      return;
+    } else if (data.message && data.message.includes('terdaftar untuk wilayah')) {
+      showTokenMessage(data.message, 'error');
+      appState.isCodeVerified = false;
+      return;
     }
   } catch (err) {
     console.warn('Verifikasi server gagal atau offline, beralih ke verifikasi DPT lokal.');
   }
 
-  // VALIDASI KETAT MODE LOKAL / OFFLINE (Berdasarkan DPT Banyubiru)
+  // VALIDASI KETAT MODE LOKAL / DPT SINKRONISASI (Berdasarkan DPT Banyubiru)
   dom.btnVerifyToken.disabled = false;
   dom.btnVerifyToken.textContent = 'Verifikasi Kode';
 
@@ -601,33 +668,36 @@ async function handleVerifyCode() {
     dom.btnVerifyToken.disabled = true;
     dom.btnVerifyToken.textContent = 'Memeriksa...';
 
-    if (appState.isServerConnected) {
-      const res = await fetchWithTimeout('/api/verify-voter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kode_pemilih: cleanCode,
-          wilayah_id: appState.selectedWilayahId
-        })
-      }, 3500);
+    const res = await fetchWithTimeout('/api/verify-voter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kode_pemilih: cleanCode,
+        wilayah_id: appState.selectedWilayahId
+      })
+    }, 3500);
 
-      const data = await res.json();
-      dom.btnVerifyToken.disabled = false;
-      dom.btnVerifyToken.textContent = 'Verifikasi Kode';
+    const data = await res.json();
+    dom.btnVerifyToken.disabled = false;
+    dom.btnVerifyToken.textContent = 'Verifikasi Kode';
 
-      if (!data.success) {
-        showTokenMessage(data.message, 'error');
-        appState.isCodeVerified = false;
-      } else {
-        appState.isCodeVerified = true;
-        appState.voterCode = cleanCode;
-        showTokenMessage(`✓ Kode Terdaftar: ${data.data.nama_pemilih || 'Warga'} (${data.data.wilayah_nama}). Silakan tentukan calon pilihan Anda.`, 'success');
-      }
+    if (data.success && data.data) {
+      appState.isCodeVerified = true;
+      appState.voterCode = cleanCode;
+      showTokenMessage(`✓ Kode Terdaftar: ${data.data.nama_pemilih || 'Warga'} (${data.data.wilayah_nama}). Silakan tentukan calon pilihan Anda.`, 'success');
+      return;
+    } else if (data.message && data.message.includes('SUDAH DIGUNAKAN')) {
+      showTokenMessage(data.message, 'error');
+      appState.isCodeVerified = false;
+      return;
+    } else if (data.message && data.message.includes('terdaftar untuk wilayah')) {
+      showTokenMessage(data.message, 'error');
+      appState.isCodeVerified = false;
       return;
     }
   } catch (err) {}
 
-  // Verifikasi ketat lokal
+  // Verifikasi ketat lokal jika server belum sinkron
   dom.btnVerifyToken.disabled = false;
   dom.btnVerifyToken.textContent = 'Verifikasi Kode';
 

@@ -21,15 +21,35 @@
 
       <form id="adminLoginForm">
         <div class="form-group">
-          <label class="form-label" for="loginUsername">Username Admin</label>
-          <input type="text" id="loginUsername" class="form-control" placeholder="admin" required autocomplete="username">
+          <label class="form-label" for="loginUsername">Username Panitia / Admin</label>
+          <input type="text" id="loginUsername" class="form-control" placeholder="admin / ketua / panitia / pengawas" required autocomplete="username">
         </div>
         <div class="form-group">
-          <label class="form-label" for="loginPassword">Password Admin</label>
+          <label class="form-label" for="loginPassword">Password Akses</label>
           <input type="password" id="loginPassword" class="form-control" placeholder="••••••••••••" required autocomplete="current-password">
         </div>
         <button type="submit" class="btn-login">Masuk ke Dashboard</button>
       </form>
+
+      <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: #94a3b8;">
+        <div style="font-weight: 600; color: #cbd5e1; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+          <span>🔑</span> Akun Akses Panitia Pemilihan:
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75rem;">
+          <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+            <strong style="color: #60a5fa;">admin</strong><br><span style="color: #94a3b8;">Admin Utama</span>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+            <strong style="color: #34d399;">ketua</strong><br><span style="color: #94a3b8;">Ketua Panitia</span>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+            <strong style="color: #fbbf24;">panitia</strong><br><span style="color: #94a3b8;">Anggota Panitia</span>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+            <strong style="color: #a78bfa;">pengawas</strong><br><span style="color: #94a3b8;">Pengawas BPD</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -178,10 +198,20 @@
         <div id="tab-pemilih" class="admin-tab-pane">
           <div class="card-box">
             <div class="card-box-header" style="flex-wrap: wrap; gap: 12px;">
-              <h3 class="card-box-title">Manajemen Data & Kode Pemilih</h3>
-              <button id="btnOpenGenModal" class="btn-action btn-action-primary" type="button">
-                ➕ Generate Kode Pemilih Baru
-              </button>
+              <div>
+                <h3 class="card-box-title">Daftar Pemilih Tetap (DPT) & Kode Pemilih</h3>
+                <p style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                  Hanya pemilih yang terdaftar di bawah ini yang dapat login dan memberikan suara di bilik suara.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button id="btnOpenAddPemilihModal" class="btn-action btn-action-primary" type="button">
+                  ➕ Tambah 1 Pemilih Manual
+                </button>
+                <button id="btnOpenGenModal" class="btn-action btn-action-secondary" type="button" style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1;">
+                  ⚡ Generate Kode Massal
+                </button>
+              </div>
             </div>
 
             <!-- FILTER BAR -->
@@ -202,7 +232,7 @@
               </div>
               <div style="flex: 1.2; min-width: 220px;">
                 <label class="form-label">Cari Kode / Nama</label>
-                <input type="text" id="searchPemilih" class="form-control" placeholder="Ketik kode pemilih...">
+                <input type="text" id="searchPemilih" class="form-control" placeholder="Ketik kode atau nama pemilih...">
               </div>
             </div>
 
@@ -212,10 +242,12 @@
                 <thead>
                   <tr>
                     <th style="width: 50px;">No</th>
+                    <th>Nama Pemilih</th>
                     <th>Kode Pemilih (Token)</th>
                     <th>Wilayah / Dusun</th>
                     <th>Status Hak Suara</th>
                     <th>Waktu Pemberian Suara</th>
+                    <th style="width: 80px; text-align: center;">Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="pemilihTableBody">
@@ -429,6 +461,46 @@
       <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
         <button id="btnCloseReset" class="btn-action" type="button">Batal</button>
         <button id="btnSubmitReset" class="btn-action btn-action-danger" type="button">Ya, Hapus dan Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL TAMBAH PEMILIH MANUAL -->
+  <div id="addPemilihModal" class="admin-modal-backdrop">
+    <div class="admin-modal-box" style="max-width: 500px;">
+      <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: #1e293b;">
+        ➕ Tambah Data Pemilih Tetap (DPT)
+      </h3>
+      <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">
+        Masukkan data warga pemilih resmi. Kode Pemilih ini yang nantinya dipakai warga saat verifikasi di bilik suara.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="addPemilihWilayahSelect">Wilayah / Dusun Pemilihan</label>
+        <select id="addPemilihWilayahSelect" class="form-control"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="addPemilihNamaInput">Nama Lengkap Pemilih</label>
+        <input type="text" id="addPemilihNamaInput" class="form-control" placeholder="Contoh: Budi Santoso" required>
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label class="form-label" for="addPemilihKodeInput" style="margin-bottom: 0;">Kode Pemilih (Token Hak Suara)</label>
+          <button type="button" id="btnAutoGenerateKode" style="background: none; border: none; color: #2563eb; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+            ⚡ Buat Kode Acak
+          </button>
+        </div>
+        <input type="text" id="addPemilihKodeInput" class="form-control" placeholder="Contoh: KRAJAN-05 atau BB-8821" style="font-family: monospace; font-weight: 700; text-transform: uppercase;" required>
+        <small style="color: #64748b; font-size: 0.78rem; display: block; margin-top: 4px;">
+          *Kode harus unik dan belum pernah dipakai oleh warga lain.
+        </small>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px;">
+        <button id="btnCloseAddPemilih" class="btn-action" type="button">Batal</button>
+        <button id="btnSubmitAddPemilih" class="btn-action btn-action-primary" type="button">Simpan Pemilih</button>
       </div>
     </div>
   </div>

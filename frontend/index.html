@@ -15,10 +15,6 @@
       <div class="logo-badge">🏛️ PEMERINTAH DESA BANYUBIRU</div>
       <h1 class="site-title">E-VOTING BPD DESA BANYUBIRU</h1>
       <p class="site-subtitle">Pemilihan Anggota Badan Permusyawaratan Desa (BPD) Periode 2027–2034, Kabupaten Semarang</p>
-      <button id="btnOpenPublicResults" class="header-live-btn" type="button">
-        <span class="live-dot-pulse"></span>
-        📊 Lihat Rekapitulasi Suara Terkini (Real-Time)
-      </button>
     </div>
   </header>
 
@@ -30,55 +26,14 @@
       <div class="success-icon-wrap">
         <div class="success-icon">✓</div>
       </div>
-      <h2 class="success-title">Suara Anda Sah & Berhasil Tercatat!</h2>
+      <h2 class="success-title">Suara Anda Berhasil Disimpan!</h2>
       <p class="success-desc">
-        Pilihan Anda telah masuk ke dalam sistem rekapitulasi database resmi Pemilihan BPD Desa Banyubiru secara permanen dan aman.
+        Terima kasih atas partisipasi Anda dalam Pemilihan Anggota BPD Desa Banyubiru Periode 2027–2034. Pilihan Anda telah tersimpan secara resmi, rahasia, dan aman di sistem panitia pemilihan.
       </p>
       <div id="successVoterWilayah" class="success-wilayah-badge"></div>
 
-      <!-- KARTU TRANSPARANSI REKAPITULASI HASIL SUARA -->
-      <div class="transparency-card">
-        <div class="transparency-card-header">
-          <div class="transparency-title-box">
-            <span class="live-dot-pulse"></span>
-            <h3 class="transparency-title">REKAPITULASI HASIL SUARA REAL-TIME</h3>
-          </div>
-          <span class="transparency-badge">🛡️ Transparan & Anti-Kecurangan</span>
-        </div>
-        
-        <p class="transparency-info">
-          Data perolehan suara terkini yang tercatat resmi di database desa pada wilayah pemilihan Anda:
-        </p>
-
-        <!-- Summary Metrics -->
-        <div class="transparency-metrics">
-          <div class="metric-item">
-            <span class="metric-label">Total Suara Masuk</span>
-            <span id="liveTotalSuaraWilayah" class="metric-val">0</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-label">Status Suara Anda</span>
-            <span class="metric-val text-success">✓ Terhitung (+1)</span>
-          </div>
-          <div class="metric-item">
-            <span class="metric-label">Pembaruan Terakhir</span>
-            <span id="liveWaktuRekap" class="metric-val text-muted">-</span>
-          </div>
-        </div>
-
-        <!-- Daftar Bar Perolehan Calon -->
-        <div id="liveHasilSuaraContainer" class="live-results-list">
-          <!-- Diisi otomatis oleh JavaScript -->
-        </div>
-
-        <div class="transparency-footer-note">
-          🔒 <strong>Jaminan Keamanan:</strong> Setiap suara dilindungi enkripsi hash satu arah (<em>SHA-256</em>) dan transaksi atomik database (<em>row-level lock</em>) sehingga hasil penghitungan tidak dapat dimanipulasi atau digandakan.
-        </div>
-      </div>
-
       <div class="success-actions">
-        <button id="btnRefreshLiveTally" class="btn-secondary" type="button">🔄 Muat Ulang Hasil Terkini</button>
-        <button id="btnVoteAgain" class="btn-primary" type="button">Selesai / Halaman Utama</button>
+        <button id="btnVoteAgain" class="btn-primary" type="button">Selesai / Kembali ke Halaman Utama</button>
       </div>
     </section>
 
@@ -183,45 +138,6 @@
       <div class="modal-buttons">
         <button id="btnCancelVote" class="btn-secondary" type="button">Batal / Periksa</button>
         <button id="btnConfirmSubmitVote" class="btn-confirm-vote" type="button">Ya, Kirim Suara</button>
-      </div>
-    </div>
-  <!-- MODAL REKAPITULASI SUARA PUBLIK (BISA DILIHAT KAPAN SAJA OLEH WARGA) -->
-  <div id="publicResultsModal" class="modal-backdrop">
-    <div class="modal-card modal-card-large">
-      <div class="modal-large-header">
-        <div>
-          <div class="modal-kicker">📊 TRANSPARANSI PEMILU BPD</div>
-          <h3 class="modal-large-title">Rekapitulasi Suara Terbuka (Real-Time)</h3>
-        </div>
-        <button id="btnClosePublicResults" class="modal-close-btn" type="button" aria-label="Tutup">&times;</button>
-      </div>
-
-      <div class="public-modal-filter">
-        <label for="publicResultsWilayahSelect" style="font-weight: 600; font-size: 0.9rem; color: #1e3a8a;">Pilih Wilayah / Dusun:</label>
-        <select id="publicResultsWilayahSelect" class="form-select"></select>
-      </div>
-
-      <div class="transparency-metrics" style="margin-top: 14px;">
-        <div class="metric-item">
-          <span class="metric-label">Total Suara Masuk</span>
-          <span id="publicModalTotalSuara" class="metric-val">0</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">Status Sistem</span>
-          <span class="metric-val text-success">🟢 Rekapitulasi Aktif</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">Pembaruan Terakhir</span>
-          <span id="publicModalWaktu" class="metric-val text-muted">-</span>
-        </div>
-      </div>
-
-      <div id="publicModalResultsList" class="live-results-list" style="margin-top: 16px;">
-        <!-- Diisi dinamis oleh JavaScript -->
-      </div>
-
-      <div class="modal-large-footer">
-        <button id="btnClosePublicResultsBottom" class="btn-secondary" type="button">Tutup Jendela</button>
       </div>
     </div>
   </div>

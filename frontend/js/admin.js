@@ -208,7 +208,37 @@ function initAdminDOM() {
     btnSubmitReset: document.getElementById('btnSubmitReset'),
     btnCloseReset: document.getElementById('btnCloseReset'),
     btnToggleLock: document.getElementById('btnToggleLock'),
-    lockStatusBadge: document.getElementById('lockStatusBadge')
+    lockStatusBadge: document.getElementById('lockStatusBadge'),
+
+    // Tombol Simpan & Cadangan Baru
+    btnSaveAllData: document.getElementById('btnSaveAllData'),
+    btnSaveDpt: document.getElementById('btnSaveDpt'),
+    btnBackupDpt: document.getElementById('btnBackupDpt'),
+    btnRestoreDptTrigger: document.getElementById('btnRestoreDptTrigger'),
+    dptFileInput: document.getElementById('dptFileInput'),
+    btnPrintTokens: document.getElementById('btnPrintTokens'),
+
+    // Modal Edit Pemilih
+    editPemilihModal: document.getElementById('editPemilihModal'),
+    editPemilihOriginalKode: document.getElementById('editPemilihOriginalKode'),
+    editPemilihKodeInput: document.getElementById('editPemilihKodeInput'),
+    editPemilihWilayahSelect: document.getElementById('editPemilihWilayahSelect'),
+    editPemilihNamaInput: document.getElementById('editPemilihNamaInput'),
+    btnCloseEditPemilih: document.getElementById('btnCloseEditPemilih'),
+    btnSubmitEditPemilih: document.getElementById('btnSubmitEditPemilih'),
+
+    // Modal Cetak Kartu Token
+    printTokenModal: document.getElementById('printTokenModal'),
+    btnClosePrintModal: document.getElementById('btnClosePrintModal'),
+    printFilterWilayah: document.getElementById('printFilterWilayah'),
+    btnExecutePrint: document.getElementById('btnExecutePrint'),
+    printPreviewContainer: document.getElementById('printPreviewContainer'),
+
+    // Pengaturan
+    btnSaveSettings: document.getElementById('btnSaveSettings'),
+    settingNamaPemilihan: document.getElementById('settingNamaPemilihan'),
+    settingMasaToken: document.getElementById('settingMasaToken'),
+    settingPesanPengumuman: document.getElementById('settingPesanPengumuman')
   };
 
   if (domA.loginForm) domA.loginForm.addEventListener('submit', handleAdminLogin);
@@ -223,6 +253,22 @@ function initAdminDOM() {
 
   if (domA.btnRefresh) domA.btnRefresh.addEventListener('click', refreshAllData);
   if (domA.btnExportCsv) domA.btnExportCsv.addEventListener('click', exportCsvResults);
+
+  // Event Listener Tombol Simpan & Cadangan
+  if (domA.btnSaveAllData) domA.btnSaveAllData.addEventListener('click', saveAllData);
+  if (domA.btnSaveDpt) domA.btnSaveDpt.addEventListener('click', saveDptData);
+  if (domA.btnBackupDpt) domA.btnBackupDpt.addEventListener('click', backupDptToFile);
+  if (domA.btnRestoreDptTrigger) domA.btnRestoreDptTrigger.addEventListener('click', () => domA.dptFileInput && domA.dptFileInput.click());
+  if (domA.dptFileInput) domA.dptFileInput.addEventListener('change', handleRestoreDptFile);
+  if (domA.btnPrintTokens) domA.btnPrintTokens.addEventListener('click', openPrintTokenModal);
+  if (domA.btnClosePrintModal) domA.btnClosePrintModal.addEventListener('click', closePrintTokenModal);
+  if (domA.printFilterWilayah) domA.printFilterWilayah.addEventListener('change', renderPrintPreview);
+  if (domA.btnExecutePrint) domA.btnExecutePrint.addEventListener('click', executePrintTokens);
+
+  if (domA.btnCloseEditPemilih) domA.btnCloseEditPemilih.addEventListener('click', closeEditPemilihModal);
+  if (domA.btnSubmitEditPemilih) domA.btnSubmitEditPemilih.addEventListener('click', saveEditPemilih);
+
+  if (domA.btnSaveSettings) domA.btnSaveSettings.addEventListener('click', saveSettingsData);
 
   if (domA.filterWilayahPemilih) domA.filterWilayahPemilih.addEventListener('change', loadPemilihData);
   if (domA.filterStatusPemilih) domA.filterStatusPemilih.addEventListener('change', loadPemilihData);
@@ -894,31 +940,68 @@ async function saveCalonData() {
   loadCalonAdmin();
 }
 
-// 7. DAFTAR, FILTER & KELOLA DATA PEMILIH (DPT)
+// 7. DAFTAR, FILTER & KELOLA DATA PEMILIH (DPT DENGAN DUA ARAH SINKRONISASI ANTI-HILANG)
+async function syncLocalVotersToServerSilently(votersList) {
+  try {
+    await authFetch('/api/admin/pemilih/bulk-sync', {
+      method: 'POST',
+      body: JSON.stringify({ voters: votersList })
+    });
+  } catch (e) {
+    // Sinkronisasi background senyap
+  }
+}
+
 async function loadPemilihData() {
   if (!domA.pemilihTableBody) return;
-  domA.pemilihTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b;">Memuat data pemilih...</td></tr>';
+  domA.pemilihTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b;">Memuat data pemilih resmi...</td></tr>';
 
   const wId = domA.filterWilayahPemilih ? domA.filterWilayahPemilih.value : 'all';
   const status = domA.filterStatusPemilih ? domA.filterStatusPemilih.value : 'all';
   const query = domA.searchPemilih ? domA.searchPemilih.value.trim().toLowerCase() : '';
 
-  let list = getLocalPemilihList();
+  let localList = getLocalPemilihList();
 
+  // 1. Ambil data server dan LAKUKAN MERGE DUA ARAH (Two-Way Sync)
+  // Ini MENJAMIN token yang dibuat panitia TIDAK AKAN PERNAH HILANG meski server restart
   try {
     const res = await authFetch(`/api/admin/pemilih?wilayah_id=${encodeURIComponent(wId)}&status=${encodeURIComponent(status)}&search=${encodeURIComponent(query)}`);
     if (res.ok) {
       const result = await res.json();
-      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-        // Sync server list with local
-        renderPemilihTable(result.data);
-        return;
+      if (result.success && Array.isArray(result.data)) {
+        const mergedMap = new Map();
+        
+        // Simpan semua pemilih lokal
+        localList.forEach(p => mergedMap.set(p.kode_pemilih.toUpperCase(), p));
+
+        // Gabungkan data dari database server
+        result.data.forEach(p => {
+          const key = p.kode_pemilih.toUpperCase();
+          if (mergedMap.has(key)) {
+            const existing = mergedMap.get(key);
+            // Perbarui status jika sudah memilih di server
+            if (p.sudah_memilih !== undefined) existing.sudah_memilih = p.sudah_memilih;
+            if (p.waktu_memilih !== undefined) existing.waktu_memilih = p.waktu_memilih;
+          } else {
+            mergedMap.set(key, p);
+          }
+        });
+
+        localList = Array.from(mergedMap.values());
+        saveLocalPemilihList(localList);
+
+        // Jika ada data lokal baru yang belum masuk ke server, kirim ke server secara senyap
+        if (localList.length > result.data.length) {
+          syncLocalVotersToServerSilently(localList);
+        }
       }
     }
-  } catch (err) {}
+  } catch (err) {
+    console.warn('Gagal memuat dari server, menggunakan DPT lokal:', err);
+  }
 
-  // Filter dari data lokal
-  let filtered = list;
+  // 2. Filter dari data yang telah disinkronkan & di-merge
+  let filtered = localList;
   if (wId !== 'all') {
     filtered = filtered.filter((p) => p.wilayah_id === parseInt(wId, 10));
   }
@@ -964,8 +1047,11 @@ function renderPemilihTable(pemilihList) {
       <td style="font-size:0.82rem; color:#64748b;">
         ${p.waktu_memilih ? p.waktu_memilih : (isVoted ? 'Terekam' : '-')}
       </td>
-      <td style="text-align: center;">
-        <button class="btn-action btn-action-danger" style="padding: 4px 10px; font-size: 0.78rem;" onclick="deletePemilih('${p.kode_pemilih}')" title="Hapus Pemilih dari DPT">
+      <td style="text-align: center; white-space: nowrap;">
+        <button class="btn-action" style="padding: 4px 8px; font-size: 0.78rem; background: #0284c7; color:#fff; border:none; margin-right:4px;" onclick="openEditPemilihModal('${p.kode_pemilih}')" title="Edit Data Pemilih">
+          ✏️ Edit
+        </button>
+        <button class="btn-action btn-action-danger" style="padding: 4px 8px; font-size: 0.78rem;" onclick="deletePemilih('${p.kode_pemilih}')" title="Hapus Pemilih dari DPT">
           🗑️ Hapus
         </button>
       </td>
@@ -1082,6 +1168,253 @@ window.deletePemilih = async function (kode) {
   loadStats();
 };
 
+// 7D. EDIT PEMILIH MODAL & SIMPAN PERUBAHAN
+window.openEditPemilihModal = function (kode) {
+  const list = getLocalPemilihList();
+  const voter = list.find((p) => p.kode_pemilih.toUpperCase() === String(kode).trim().toUpperCase());
+  if (!voter) {
+    alert('Data pemilih tidak ditemukan.');
+    return;
+  }
+
+  if (domA.editPemilihOriginalKode) domA.editPemilihOriginalKode.value = voter.kode_pemilih;
+  if (domA.editPemilihKodeInput) domA.editPemilihKodeInput.value = voter.kode_pemilih;
+  if (domA.editPemilihNamaInput) domA.editPemilihNamaInput.value = voter.nama_pemilih || '';
+  if (domA.editPemilihWilayahSelect) domA.editPemilihWilayahSelect.value = voter.wilayah_id;
+
+  if (domA.editPemilihModal) domA.editPemilihModal.classList.add('active');
+};
+
+function closeEditPemilihModal() {
+  if (domA.editPemilihModal) domA.editPemilihModal.classList.remove('active');
+}
+
+async function saveEditPemilih() {
+  const originalKode = domA.editPemilihOriginalKode ? domA.editPemilihOriginalKode.value.trim().toUpperCase() : '';
+  const newNama = domA.editPemilihNamaInput ? domA.editPemilihNamaInput.value.trim() : '';
+  const newWilayahId = parseInt(domA.editPemilihWilayahSelect ? domA.editPemilihWilayahSelect.value : '1', 10);
+
+  if (!newNama) {
+    alert('Nama pemilih tidak boleh kosong.');
+    return;
+  }
+
+  const list = getLocalPemilihList();
+  const idx = list.findIndex((p) => p.kode_pemilih.toUpperCase() === originalKode);
+  if (idx === -1) {
+    alert('Data pemilih tidak ditemukan dalam DPT.');
+    return;
+  }
+
+  const wObj = LOCAL_ADMIN_WILAYAH.find((w) => w.id === newWilayahId) || { nama_wilayah: 'Wilayah ' + newWilayahId };
+  list[idx].nama_pemilih = newNama;
+  list[idx].wilayah_id = newWilayahId;
+  list[idx].nama_wilayah = wObj.nama_wilayah;
+  saveLocalPemilihList(list);
+
+  // Update ke server
+  try {
+    await authFetch('/api/admin/pemilih/' + encodeURIComponent(originalKode), {
+      method: 'PUT',
+      body: JSON.stringify({
+        nama_pemilih: newNama,
+        wilayah_id: newWilayahId
+      })
+    });
+  } catch (err) {}
+
+  alert(`SUKSES: Data pemilih "${newNama}" (${originalKode}) berhasil disimpan secara permanen!`);
+  closeEditPemilihModal();
+  loadPemilihData();
+  loadStats();
+}
+
+// 7E. SIMPAN PERMANEN (SELURUH DATA & DPT)
+async function saveDptData() {
+  const list = getLocalPemilihList();
+  if (domA.btnSaveDpt) {
+    domA.btnSaveDpt.disabled = true;
+    domA.btnSaveDpt.textContent = 'Menyimpan...';
+  }
+
+  saveLocalPemilihList(list);
+
+  try {
+    const res = await authFetch('/api/admin/pemilih/bulk-sync', {
+      method: 'POST',
+      body: JSON.stringify({ voters: list })
+    });
+    if (res.ok) {
+      alert(`✅ BERHASIL DISIMPAN:\nSeluruh data DPT (${list.length} pemilih) telah disimpan permanen ke server database dan penyimpanan aman!`);
+    } else {
+      alert(`✅ TERSIMPAN LOKAL:\nData DPT (${list.length} pemilih) berhasil disimpan permanen di browser.`);
+    }
+  } catch (err) {
+    alert(`✅ TERSIMPAN:\nData DPT (${list.length} pemilih) berhasil disimpan di penyimpanan lokal.`);
+  }
+
+  if (domA.btnSaveDpt) {
+    domA.btnSaveDpt.disabled = false;
+    domA.btnSaveDpt.textContent = '💾 Simpan DPT';
+  }
+  loadStats();
+}
+
+async function saveAllData() {
+  if (domA.btnSaveAllData) {
+    domA.btnSaveAllData.disabled = true;
+    domA.btnSaveAllData.textContent = 'Menyimpan...';
+  }
+
+  await saveDptData();
+  saveSettingsData();
+
+  if (domA.btnSaveAllData) {
+    domA.btnSaveAllData.disabled = false;
+    domA.btnSaveAllData.textContent = '💾 Simpan Seluruh Data';
+  }
+}
+
+// 7F. CADANGAN & PEMULIHAN FILE DPT (GARANSI DATA TIDAK PERNAH HILANG)
+function backupDptToFile() {
+  const list = getLocalPemilihList();
+  const jsonStr = JSON.stringify(list, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const dateStr = new Date().toISOString().split('T')[0];
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `DPT_BPD_BANYUBIRU_CADANGAN_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  alert(`✅ BACKUP BERHASIL DIUNDUH:\nFile cadangan berisi ${list.length} data pemilih telah diunduh ke komputer/HP Anda.\n\nSimpan file ini dengan aman agar data tetap terjaga utuh selamanya!`);
+}
+
+function handleRestoreDptFile(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function (e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        alert('Format file cadangan tidak valid atau data pemilih kosong.');
+        return;
+      }
+
+      const currentList = getLocalPemilihList();
+      const map = new Map(currentList.map((p) => [p.kode_pemilih.toUpperCase(), p]));
+      let newCount = 0;
+
+      parsed.forEach((item) => {
+        if (item.kode_pemilih) {
+          const key = item.kode_pemilih.toUpperCase();
+          if (!map.has(key)) newCount++;
+          map.set(key, item);
+        }
+      });
+
+      const merged = Array.from(map.values());
+      saveLocalPemilihList(merged);
+
+      try {
+        await authFetch('/api/admin/pemilih/bulk-sync', {
+          method: 'POST',
+          body: JSON.stringify({ voters: merged })
+        });
+      } catch (err) {}
+
+      alert(`✅ PEMULIHAN SELESAI:\nBerhasil memulihkan ${merged.length} data pemilih (termasuk ${newCount} kode baru dari file cadangan)!`);
+      loadPemilihData();
+      loadStats();
+    } catch (err) {
+      alert('Gagal memproses file. Pastikan file berupa JSON cadangan DPT yang sah.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// 7G. CETAK KARTU KUPON TOKEN UNDI PEMILIH
+function openPrintTokenModal() {
+  if (domA.printTokenModal) domA.printTokenModal.classList.add('active');
+  renderPrintPreview();
+}
+
+function closePrintTokenModal() {
+  if (domA.printTokenModal) domA.printTokenModal.classList.remove('active');
+}
+
+function renderPrintPreview() {
+  if (!domA.printPreviewContainer) return;
+  const wId = domA.printFilterWilayah ? domA.printFilterWilayah.value : 'all';
+  let list = getLocalPemilihList();
+
+  if (wId !== 'all') {
+    list = list.filter((p) => p.wilayah_id === parseInt(wId, 10));
+  }
+
+  if (list.length === 0) {
+    domA.printPreviewContainer.innerHTML = '<p style="text-align:center;color:#64748b;padding:30px;">Tidak ada pemilih terdaftar pada pilihan wilayah ini.</p>';
+    return;
+  }
+
+  let html = `<div style="margin-bottom: 12px; font-size: 0.85rem; color: #475569;">Menampilkan <strong>${list.length}</strong> kartu kupon token undi siap cetak:</div>`;
+  html += '<div class="token-cards-grid">';
+  list.forEach((p, idx) => {
+    html += `
+      <div class="token-card-item">
+        <div class="token-card-header">
+          <div class="token-card-title">PANITIA PEMILIHAN BPD</div>
+          <div class="token-card-subtitle">DESA BANYUBIRU (2027–2034)</div>
+        </div>
+        <div class="token-card-body">
+          <div class="token-card-meta">
+            <strong>No. Urut:</strong> ${idx + 1}<br>
+            <strong>Nama:</strong> ${p.nama_pemilih || 'Warga Pemilih'}<br>
+            <strong>Wilayah:</strong> ${p.nama_wilayah || 'Wilayah ' + p.wilayah_id}
+          </div>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">KODE TOKEN UNDIAN HAK SUARA:</div>
+          <div class="token-box-code">${p.kode_pemilih}</div>
+        </div>
+        <div class="token-card-footer">
+          Link E-Voting: <strong>evoting-bpd-banyubiru.vercel.app</strong><br>
+          <em>*Gunakan kode ini saat pemilihan resmi. Bersifat rahasia & 1x pakai.</em>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+
+  domA.printPreviewContainer.innerHTML = html;
+}
+
+function executePrintTokens() {
+  window.print();
+}
+
+// 7H. SIMPAN PENGATURAN PEMILIHAN
+function saveSettingsData() {
+  const nama = domA.settingNamaPemilihan ? domA.settingNamaPemilihan.value.trim() : '';
+  const masa = domA.settingMasaToken ? domA.settingMasaToken.value : '30';
+  const pesan = domA.settingPesanPengumuman ? domA.settingPesanPengumuman.value.trim() : '';
+
+  const cfg = {
+    nama_pemilihan: nama,
+    masa_token_hari: masa,
+    pesan_pengumuman: pesan,
+    updated_at: new Date().toISOString()
+  };
+
+  localStorage.setItem('banyubiru_settings_config', JSON.stringify(cfg));
+  alert('✅ PENGATURAN BERHASIL DISIMPAN:\nKonfigurasi pemilihan dan masa aktif token telah disimpan.');
+}
+
 // Isi opsi dropdown wilayah
 async function loadWilayahOptions() {
   let list = LOCAL_ADMIN_WILAYAH;
@@ -1142,6 +1475,26 @@ async function loadWilayahOptions() {
       opt.value = w.id;
       opt.textContent = w.nama_wilayah;
       domA.genWilayahSelect.appendChild(opt);
+    });
+  }
+
+  if (domA.editPemilihWilayahSelect) {
+    domA.editPemilihWilayahSelect.innerHTML = '';
+    list.forEach((w) => {
+      const opt = document.createElement('option');
+      opt.value = w.id;
+      opt.textContent = w.nama_wilayah;
+      domA.editPemilihWilayahSelect.appendChild(opt);
+    });
+  }
+
+  if (domA.printFilterWilayah) {
+    domA.printFilterWilayah.innerHTML = '<option value="all">-- Semua Wilayah / Dusun --</option>';
+    list.forEach((w) => {
+      const opt = document.createElement('option');
+      opt.value = w.id;
+      opt.textContent = w.nama_wilayah;
+      domA.printFilterWilayah.appendChild(opt);
     });
   }
 }

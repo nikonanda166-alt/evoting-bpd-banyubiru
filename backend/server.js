@@ -327,12 +327,12 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Username atau password admin salah!' });
     }
 
-    const token = generateToken({ id: admin.id, username: admin.username });
+    const token = generateToken({ id: admin.id, username: admin.username, role: admin.role || 'Admin' });
     res.json({
       success: true,
       message: 'Login berhasil.',
       token,
-      admin: { username: admin.username }
+      admin: { username: admin.username, role: admin.role || 'Admin' }
     });
   } catch (err) {
     console.error('Error /api/admin/login:', err);
@@ -572,6 +572,50 @@ app.get('/api/admin/pemilih', requireAdminAuth, async (req, res) => {
   } catch (err) {
     console.error('Error /api/admin/pemilih:', err);
     res.status(500).json({ success: false, message: 'Gagal mengambil data pemilih.' });
+  }
+});
+
+// Tambah Pemilih Baru Manual (1 per 1)
+app.post('/api/admin/pemilih', requireAdminAuth, async (req, res) => {
+  try {
+    const { wilayah_id, nama_pemilih, kode_pemilih } = req.body;
+    const wId = parseInt(wilayah_id, 10);
+    const cleanKode = String(kode_pemilih || '').trim().toUpperCase();
+    const cleanNama = String(nama_pemilih || '').trim();
+
+    if (!cleanKode || !cleanNama || isNaN(wId)) {
+      return res.status(400).json({ success: false, message: 'Wilayah, nama pemilih, dan kode pemilih wajib diisi.' });
+    }
+
+    const existing = await dbGet('SELECT id FROM pemilih WHERE UPPER(kode_pemilih) = ?', [cleanKode]);
+    if (existing) {
+      return res.status(400).json({ success: false, message: `Kode Pemilih "${cleanKode}" sudah terdaftar.` });
+    }
+
+    await dbRun(
+      'INSERT INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih) VALUES (?, ?, ?, 0)',
+      [cleanKode, wId, cleanNama]
+    );
+
+    res.json({
+      success: true,
+      message: `Pemilih "${cleanNama}" dengan kode "${cleanKode}" berhasil ditambahkan ke DPT.`
+    });
+  } catch (err) {
+    console.error('Error tambah pemilih:', err);
+    res.status(500).json({ success: false, message: 'Gagal menambahkan pemilih baru ke database.' });
+  }
+});
+
+// Hapus Pemilih dari DPT
+app.delete('/api/admin/pemilih/:kode', requireAdminAuth, async (req, res) => {
+  try {
+    const cleanKode = String(req.params.kode).trim().toUpperCase();
+    await dbRun('DELETE FROM pemilih WHERE UPPER(kode_pemilih) = ?', [cleanKode]);
+    res.json({ success: true, message: `Pemilih dengan kode "${cleanKode}" berhasil dihapus dari DPT.` });
+  } catch (err) {
+    console.error('Error hapus pemilih:', err);
+    res.status(500).json({ success: false, message: 'Gagal menghapus data pemilih.' });
   }
 });
 

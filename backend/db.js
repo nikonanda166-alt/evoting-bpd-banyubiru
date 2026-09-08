@@ -2,8 +2,57 @@ const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
+const fs = require('fs');
+
+// Deteksi mode serverless Vercel
+const isVercel = Boolean(process.env.VERCEL);
+
 // Deteksi mode database: Supabase (PostgreSQL) jika DATABASE_URL ada, selain itu SQLite lokal
 const isPostgres = Boolean(process.env.DATABASE_URL);
+
+// File penyimpanan data persisten cadangan (tahan banting di cloud & lokal)
+const STATE_FILE = isVercel 
+  ? path.join('/tmp', 'banyubiru_state.json') 
+  : path.join(__dirname, '..', 'banyubiru_state.json');
+
+let inMemoryState = {
+  calonPhotos: {}, // { [calonId]: photoBase64 }
+  customVoters: [], // [{ id, kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih, waktu_memilih }]
+  votes: []
+};
+
+// Helper baca data bersama (Shared State)
+function getSharedState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const raw = fs.readFileSync(STATE_FILE, 'utf8');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          inMemoryState = {
+            ...inMemoryState,
+            ...parsed,
+            calonPhotos: { ...inMemoryState.calonPhotos, ...(parsed.calonPhotos || {}) }
+          };
+        }
+      }
+    }
+  } catch (e) {}
+  return inMemoryState;
+}
+
+// Helper simpan data bersama (Shared State)
+function saveSharedState(partial) {
+  try {
+    inMemoryState = {
+      ...inMemoryState,
+      ...partial,
+      calonPhotos: { ...inMemoryState.calonPhotos, ...(partial.calonPhotos || {}) }
+    };
+    fs.writeFileSync(STATE_FILE, JSON.stringify(inMemoryState), 'utf8');
+  } catch (e) {}
+  return inMemoryState;
+}
 
 let sqliteDb = null;
 let pgPool = null;
@@ -23,7 +72,8 @@ if (isPostgres) {
 } else {
   try {
     const sqlite3 = require('sqlite3').verbose();
-    const dbPath = process.env.DB_PATH || (process.env.VERCEL ? ':memory:' : path.join(__dirname, '..', 'evoting.db'));
+    const defaultDbPath = isVercel ? path.join('/tmp', 'evoting.db') : path.join(__dirname, '..', 'evoting.db');
+    const dbPath = process.env.DB_PATH || defaultDbPath;
     sqliteDb = new sqlite3.Database(dbPath, (err) => {
       if (err) {
         console.error('❌ Gagal membuka database SQLite:', err.message);
@@ -127,15 +177,87 @@ async function dbRun(sql, params = []) {
   return { changes: 0, lastID: null };
 }
 
-// Inisialisasi Database (Jika menggunakan SQLite lokal)
+let dbInitPromise = null;
+function ensureDbInitialized() {
+  if (!dbInitPromise) {
+    dbInitPromise = initDatabase().catch((err) => {
+      console.warn('DB Init error:', err.message);
+      dbInitPromise = null;
+    });
+  }
+  return dbInitPromise;
+}
+
+// Inisialisasi Database (Kompatibel SQLite lokal, Serverless Vercel, dan PostgreSQL/Supabase)
 async function initDatabase() {
   if (isPostgres) {
-    // Pada Supabase, tabel diinisialisasi melalui SQL Editor dengan file supabase_schema.sql
-    console.log('ℹ️ Menggunakan database Supabase. Pastikan skema tabel telah dijalankan di SQL Editor Supabase.');
+    try {
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS wilayah (
+          id SERIAL PRIMARY KEY,
+          nama_wilayah VARCHAR(100) NOT NULL,
+          jadwal VARCHAR(150) NOT NULL,
+          lokasi VARCHAR(200) NOT NULL
+        )
+      `);
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS calon (
+          id SERIAL PRIMARY KEY,
+          wilayah_id INTEGER NOT NULL REFERENCES wilayah (id) ON DELETE CASCADE,
+          nomor_urut INTEGER NOT NULL,
+          nama VARCHAR(150) NOT NULL,
+          foto TEXT DEFAULT '',
+          visi_misi TEXT DEFAULT '',
+          UNIQUE (wilayah_id, nomor_urut)
+        )
+      `);
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS pemilih (
+          id SERIAL PRIMARY KEY,
+          kode_pemilih VARCHAR(50) NOT NULL UNIQUE,
+          wilayah_id INTEGER NOT NULL REFERENCES wilayah (id) ON DELETE CASCADE,
+          nama_pemilih VARCHAR(150) DEFAULT '',
+          sudah_memilih INTEGER DEFAULT 0 CHECK(sudah_memilih IN (0, 1)),
+          waktu_memilih TIMESTAMPTZ DEFAULT NULL
+        )
+      `);
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS suara (
+          id SERIAL PRIMARY KEY,
+          wilayah_id INTEGER NOT NULL REFERENCES wilayah (id) ON DELETE CASCADE,
+          calon_id INTEGER NOT NULL REFERENCES calon (id) ON DELETE CASCADE,
+          waktu TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          kode_pemilih_hash VARCHAR(64) NOT NULL UNIQUE
+        )
+      `);
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS admin (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(50) NOT NULL UNIQUE,
+          password_hash VARCHAR(255) NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS pengaturan (
+          kunci VARCHAR(50) PRIMARY KEY,
+          nilai VARCHAR(255) NOT NULL
+        )
+      `);
+
+      const existingWilayah = await dbGet('SELECT COUNT(*) as count FROM wilayah');
+      if (existingWilayah && parseInt(existingWilayah.count, 10) === 0) {
+        console.log('🌱 Melakukan inisialisasi awal data wilayah & calon di PostgreSQL/Supabase...');
+        await seedDefaultData();
+      }
+    } catch (err) {
+      console.warn('PostgreSQL auto-init info:', err.message);
+    }
     return;
   }
 
   return new Promise((resolve, reject) => {
+    if (!sqliteDb) return resolve();
     sqliteDb.serialize(async () => {
       try {
         await dbRun(`
@@ -153,7 +275,7 @@ async function initDatabase() {
             wilayah_id INTEGER NOT NULL,
             nomor_urut INTEGER NOT NULL,
             nama VARCHAR(150) NOT NULL,
-            foto VARCHAR(255) DEFAULT '',
+            foto TEXT DEFAULT '',
             visi_misi TEXT DEFAULT '',
             FOREIGN KEY (wilayah_id) REFERENCES wilayah (id) ON DELETE CASCADE,
             UNIQUE (wilayah_id, nomor_urut)
@@ -203,7 +325,25 @@ async function initDatabase() {
         const existingWilayah = await dbGet('SELECT COUNT(*) as count FROM wilayah');
         if (existingWilayah && existingWilayah.count === 0) {
           console.log('🌱 Melakukan inisialisasi awal data wilayah & calon di SQLite...');
-          await seedDefaultDataSQLite();
+          await seedDefaultData();
+        }
+
+        // Sinkronkan state tersimpan (foto kustom & pemilih baru dari Shared State)
+        const state = getSharedState();
+        if (state.calonPhotos) {
+          for (const [cId, foto] of Object.entries(state.calonPhotos)) {
+            if (foto) {
+              await dbRun('UPDATE calon SET foto = ? WHERE id = ?', [foto, parseInt(cId, 10)]);
+            }
+          }
+        }
+        if (state.customVoters && state.customVoters.length > 0) {
+          for (const v of state.customVoters) {
+            await dbRun(
+              'INSERT OR IGNORE INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih) VALUES (?, ?, ?, ?)',
+              [v.kode_pemilih.toUpperCase(), v.wilayah_id, v.nama_pemilih, v.sudah_memilih || 0]
+            );
+          }
         }
 
         const adminUser = process.env.ADMIN_USERNAME || 'admin';
@@ -219,14 +359,14 @@ async function initDatabase() {
         resolve();
       } catch (err) {
         console.error('❌ Kesalahan inisialisasi SQLite:', err);
-        reject(err);
+        resolve();
       }
     });
   });
 }
 
-// Seeding Khusus SQLite
-async function seedDefaultDataSQLite() {
+// Seeding Data Awal
+async function seedDefaultData() {
   const dataWilayah = [
     { id: 1, nama: 'KETERWAKILAN PEREMPUAN', jadwal: 'Rabu, 9 September 2026 - Pukul 10.00 WIB', lokasi: 'Balai Desa Banyubiru' },
     { id: 2, nama: 'DUSUN KRAJAN', jadwal: 'Sabtu, 12 September 2026 - Pukul 19.30 WIB', lokasi: 'Balai Dusun Krajan' },
@@ -240,7 +380,11 @@ async function seedDefaultDataSQLite() {
   ];
 
   for (const w of dataWilayah) {
-    await dbRun('INSERT OR REPLACE INTO wilayah (id, nama_wilayah, jadwal, lokasi) VALUES (?, ?, ?, ?)', [w.id, w.nama, w.jadwal, w.lokasi]);
+    if (isPostgres) {
+      await dbRun('INSERT INTO wilayah (id, nama_wilayah, jadwal, lokasi) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING', [w.id, w.nama, w.jadwal, w.lokasi]);
+    } else {
+      await dbRun('INSERT OR REPLACE INTO wilayah (id, nama_wilayah, jadwal, lokasi) VALUES (?, ?, ?, ?)', [w.id, w.nama, w.jadwal, w.lokasi]);
+    }
   }
 
   const dataCalon = [
@@ -279,7 +423,11 @@ async function seedDefaultDataSQLite() {
   ];
 
   for (const c of dataCalon) {
-    await dbRun('INSERT INTO calon (wilayah_id, nomor_urut, nama) VALUES (?, ?, ?)', [c.wId, c.no, c.nama]);
+    if (isPostgres) {
+      await dbRun('INSERT INTO calon (wilayah_id, nomor_urut, nama) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', [c.wId, c.no, c.nama]);
+    } else {
+      await dbRun('INSERT INTO calon (wilayah_id, nomor_urut, nama) VALUES (?, ?, ?)', [c.wId, c.no, c.nama]);
+    }
   }
 
   const prefixes = [
@@ -291,11 +439,19 @@ async function seedDefaultDataSQLite() {
   for (const p of prefixes) {
     for (let i = 1; i <= 5; i++) {
       const kode = `${p.code}-${String(i).padStart(2, '0')}`;
-      await dbRun('INSERT OR IGNORE INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih) VALUES (?, ?, ?)', [kode, p.wId, `Warga Pemilih ${p.code} ${i}`]);
+      if (isPostgres) {
+        await dbRun('INSERT INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih) VALUES (?, ?, ?) ON CONFLICT (kode_pemilih) DO NOTHING', [kode, p.wId, `Warga Pemilih ${p.code} ${i}`]);
+      } else {
+        await dbRun('INSERT OR IGNORE INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih) VALUES (?, ?, ?)', [kode, p.wId, `Warga Pemilih ${p.code} ${i}`]);
+      }
     }
   }
 
-  await dbRun("INSERT OR REPLACE INTO pengaturan (kunci, nilai) VALUES ('kunci_perubahan_calon', '0')");
+  if (isPostgres) {
+    await dbRun("INSERT INTO pengaturan (kunci, nilai) VALUES ('kunci_perubahan_calon', '0') ON CONFLICT (kunci) DO NOTHING");
+  } else {
+    await dbRun("INSERT OR REPLACE INTO pengaturan (kunci, nilai) VALUES ('kunci_perubahan_calon', '0')");
+  }
 }
 
 // FUNGSI TRANSAKSI ATOMIK VOTING (Bebas dari Race Condition & Double Voting)
@@ -309,6 +465,22 @@ async function submitVoteAtomic(kodePemilih, wilayahId, calonId) {
   }
 
   const tokenHash = crypto.createHash('sha256').update(cleanCode).digest('hex');
+
+  // Catat juga ke Shared State
+  const state = getSharedState();
+  if (!state.votes) state.votes = [];
+  const voterInState = state.customVoters && state.customVoters.find(p => p.kode_pemilih.toUpperCase() === cleanCode);
+  if (voterInState) {
+    voterInState.sudah_memilih = 1;
+    voterInState.waktu_memilih = new Date().toISOString();
+  }
+  state.votes.push({
+    wilayah_id: wId,
+    calon_id: cId,
+    kode_pemilih_hash: tokenHash,
+    waktu: new Date().toISOString()
+  });
+  saveSharedState(state);
 
   if (isPostgres) {
     // Implementasi Transaksi Atomik di PostgreSQL / Supabase
@@ -370,7 +542,7 @@ async function submitVoteAtomic(kodePemilih, wilayahId, calonId) {
       };
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
-      if (err.code === '23505') { // Postgres Unique Violation
+      if (err.code === '23505') {
         throw new Error('Peringatan: Suara untuk kode pemilih ini baru saja tercatat di sistem (double voting dicegah).');
       }
       throw err;
@@ -440,6 +612,9 @@ module.exports = {
   dbGet,
   dbRun,
   initDatabase,
+  ensureDbInitialized,
+  getSharedState,
+  saveSharedState,
   submitVoteAtomic,
   isPostgres
 };

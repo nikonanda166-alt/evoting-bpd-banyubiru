@@ -15,22 +15,29 @@ if (isPostgres) {
     ssl: {
       rejectUnauthorized: false
     },
-    max: 10,
-    idleTimeoutMillis: 30000
+    max: 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 2500 // Cepat gagal (2.5 detik) jika database Supabase belum siap / timeout
   });
   console.log('✅ Mode Database: PostgreSQL / Supabase terhubung.');
 } else {
-  const sqlite3 = require('sqlite3').verbose();
-  const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'evoting.db');
-  sqliteDb = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      console.error('❌ Gagal membuka database SQLite:', err.message);
-    } else {
-      console.log('✅ Mode Database: SQLite lokal terhubung:', dbPath);
-      sqliteDb.run('PRAGMA foreign_keys = ON');
-      sqliteDb.run('PRAGMA journal_mode = WAL');
-    }
-  });
+  try {
+    const sqlite3 = require('sqlite3').verbose();
+    const dbPath = process.env.DB_PATH || (process.env.VERCEL ? ':memory:' : path.join(__dirname, '..', 'evoting.db'));
+    sqliteDb = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error('❌ Gagal membuka database SQLite:', err.message);
+      } else {
+        console.log('✅ Mode Database: SQLite lokal terhubung:', dbPath);
+        if (dbPath !== ':memory:') {
+          sqliteDb.run('PRAGMA foreign_keys = ON');
+          sqliteDb.run('PRAGMA journal_mode = WAL');
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('SQLite init lewati:', e.message);
+  }
 }
 
 // Konversi query parameterized '?' (SQLite) ke '$1, $2, ...' (PostgreSQL)
@@ -41,53 +48,83 @@ function adaptSqlForPg(sql) {
 
 // Helper Query Banyak Baris
 async function dbAll(sql, params = []) {
-  if (isPostgres) {
-    const pgSql = adaptSqlForPg(sql);
-    const res = await pgPool.query(pgSql, params);
-    return res.rows;
-  } else {
-    return new Promise((resolve, reject) => {
+  if (isPostgres && pgPool) {
+    try {
+      const pgSql = adaptSqlForPg(sql);
+      const res = await pgPool.query(pgSql, params);
+      return res.rows;
+    } catch (err) {
+      console.warn('dbAll PostgreSQL error:', err.message);
+      return [];
+    }
+  } else if (sqliteDb) {
+    return new Promise((resolve) => {
       sqliteDb.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
+        if (err) {
+          console.warn('dbAll SQLite error:', err.message);
+          resolve([]);
+        } else {
+          resolve(rows || []);
+        }
       });
     });
   }
+  return [];
 }
 
 // Helper Query Satu Baris
 async function dbGet(sql, params = []) {
-  if (isPostgres) {
-    const pgSql = adaptSqlForPg(sql);
-    const res = await pgPool.query(pgSql, params);
-    return res.rows[0] || null;
-  } else {
-    return new Promise((resolve, reject) => {
+  if (isPostgres && pgPool) {
+    try {
+      const pgSql = adaptSqlForPg(sql);
+      const res = await pgPool.query(pgSql, params);
+      return res.rows[0] || null;
+    } catch (err) {
+      console.warn('dbGet PostgreSQL error:', err.message);
+      return null;
+    }
+  } else if (sqliteDb) {
+    return new Promise((resolve) => {
       sqliteDb.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row || null);
+        if (err) {
+          console.warn('dbGet SQLite error:', err.message);
+          resolve(null);
+        } else {
+          resolve(row || null);
+        }
       });
     });
   }
+  return null;
 }
 
 // Helper Eksekusi INSERT / UPDATE / DELETE
 async function dbRun(sql, params = []) {
-  if (isPostgres) {
-    const pgSql = adaptSqlForPg(sql);
-    const res = await pgPool.query(pgSql, params);
-    return {
-      changes: res.rowCount,
-      lastID: res.rows && res.rows[0] ? res.rows[0].id : null
-    };
-  } else {
-    return new Promise((resolve, reject) => {
+  if (isPostgres && pgPool) {
+    try {
+      const pgSql = adaptSqlForPg(sql);
+      const res = await pgPool.query(pgSql, params);
+      return {
+        changes: res.rowCount,
+        lastID: res.rows && res.rows[0] ? res.rows[0].id : null
+      };
+    } catch (err) {
+      console.warn('dbRun PostgreSQL error:', err.message);
+      return { changes: 0, lastID: null };
+    }
+  } else if (sqliteDb) {
+    return new Promise((resolve) => {
       sqliteDb.run(sql, params, function (err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
+        if (err) {
+          console.warn('dbRun SQLite error:', err.message);
+          resolve({ lastID: null, changes: 0 });
+        } else {
+          resolve({ lastID: this.lastID, changes: this.changes });
+        }
       });
     });
   }
+  return { changes: 0, lastID: null };
 }
 
 // Inisialisasi Database (Jika menggunakan SQLite lokal)

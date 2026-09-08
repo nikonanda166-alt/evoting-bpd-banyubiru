@@ -113,13 +113,13 @@ const DEFAULT_PEMILIH = [
 // Helper Akses Data Pemilih Terpusat (LocalStorage Terintegrasi)
 function getLocalPemilihList() {
   const dataStr = localStorage.getItem('banyubiru_daftar_pemilih');
-  if (dataStr) {
+  if (dataStr !== null) {
     try {
       const parsed = JSON.parse(dataStr);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch (e) {}
   }
-  // Inisialisasi awal jika kosong
+  // Inisialisasi awal jika belum pernah diset sama sekali
   localStorage.setItem('banyubiru_daftar_pemilih', JSON.stringify(DEFAULT_PEMILIH));
   return DEFAULT_PEMILIH;
 }
@@ -238,7 +238,15 @@ function initAdminDOM() {
     btnSaveSettings: document.getElementById('btnSaveSettings'),
     settingNamaPemilihan: document.getElementById('settingNamaPemilihan'),
     settingMasaToken: document.getElementById('settingMasaToken'),
-    settingPesanPengumuman: document.getElementById('settingPesanPengumuman')
+    settingPesanPengumuman: document.getElementById('settingPesanPengumuman'),
+
+    // Checkbox & Hapus Massal Pemilih
+    checkSelectAllPemilih: document.getElementById('checkSelectAllPemilih'),
+    selectionBarPemilih: document.getElementById('selectionBarPemilih'),
+    countSelectedPemilih: document.getElementById('countSelectedPemilih'),
+    btnDeleteSelected: document.getElementById('btnDeleteSelected'),
+    btnCancelSelected: document.getElementById('btnCancelSelected'),
+    btnDeleteAllPemilih: document.getElementById('btnDeleteAllPemilih')
   };
 
   if (domA.loginForm) domA.loginForm.addEventListener('submit', handleAdminLogin);
@@ -269,6 +277,20 @@ function initAdminDOM() {
   if (domA.btnSubmitEditPemilih) domA.btnSubmitEditPemilih.addEventListener('click', saveEditPemilih);
 
   if (domA.btnSaveSettings) domA.btnSaveSettings.addEventListener('click', saveSettingsData);
+
+  // Event Listener Multi-Select & Hapus Massal Pemilih
+  if (domA.checkSelectAllPemilih) {
+    domA.checkSelectAllPemilih.addEventListener('change', (e) => handleToggleSelectAll(e.target.checked));
+  }
+  if (domA.btnDeleteSelected) {
+    domA.btnDeleteSelected.addEventListener('click', deleteSelectedPemilih);
+  }
+  if (domA.btnCancelSelected) {
+    domA.btnCancelSelected.addEventListener('click', cancelSelection);
+  }
+  if (domA.btnDeleteAllPemilih) {
+    domA.btnDeleteAllPemilih.addEventListener('click', deleteAllPemilih);
+  }
 
   if (domA.filterWilayahPemilih) domA.filterWilayahPemilih.addEventListener('change', loadPemilihData);
   if (domA.filterStatusPemilih) domA.filterStatusPemilih.addEventListener('change', loadPemilihData);
@@ -940,7 +962,36 @@ async function saveCalonData() {
   loadCalonAdmin();
 }
 
-// 7. DAFTAR, FILTER & KELOLA DATA PEMILIH (DPT DENGAN DUA ARAH SINKRONISASI ANTI-HILANG)
+// 7. DAFTAR, FILTER & KELOLA DATA PEMILIH (DPT DENGAN DUA ARAH SINKRONISASI ANTI-HILANG & PELACAKAN HAPUS)
+let selectedPemilihCodes = new Set();
+
+function getDeletedVotersList() {
+  try {
+    const str = localStorage.getItem('banyubiru_deleted_voters');
+    if (str) {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) return parsed.map((c) => String(c).toUpperCase());
+    }
+  } catch (e) {}
+  return [];
+}
+
+function addDeletedVoterCode(code) {
+  const clean = String(code).trim().toUpperCase();
+  const list = getDeletedVotersList();
+  if (!list.includes(clean)) {
+    list.push(clean);
+    localStorage.setItem('banyubiru_deleted_voters', JSON.stringify(list));
+  }
+}
+
+function addMultipleDeletedCodes(codes) {
+  const list = getDeletedVotersList();
+  const set = new Set(list);
+  codes.forEach((c) => set.add(String(c).trim().toUpperCase()));
+  localStorage.setItem('banyubiru_deleted_voters', JSON.stringify(Array.from(set)));
+}
+
 async function syncLocalVotersToServerSilently(votersList) {
   try {
     await authFetch('/api/admin/pemilih/bulk-sync', {
@@ -954,32 +1005,51 @@ async function syncLocalVotersToServerSilently(votersList) {
 
 async function loadPemilihData() {
   if (!domA.pemilihTableBody) return;
-  domA.pemilihTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b;">Memuat data pemilih resmi...</td></tr>';
+  domA.pemilihTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#64748b;">Memuat data pemilih resmi...</td></tr>';
 
   const wId = domA.filterWilayahPemilih ? domA.filterWilayahPemilih.value : 'all';
   const status = domA.filterStatusPemilih ? domA.filterStatusPemilih.value : 'all';
   const query = domA.searchPemilih ? domA.searchPemilih.value.trim().toLowerCase() : '';
 
   let localList = getLocalPemilihList();
+  const deletedSet = new Set(getDeletedVotersList());
+
+  // Pastikan data lokal bebas dari kode yang sudah pernah dihapus
+  if (deletedSet.size > 0) {
+    const filteredLocal = localList.filter((p) => !deletedSet.has(p.kode_pemilih.toUpperCase()));
+    if (filteredLocal.length !== localList.length) {
+      localList = filteredLocal;
+      saveLocalPemilihList(localList);
+    }
+  }
 
   // 1. Ambil data server dan LAKUKAN MERGE DUA ARAH (Two-Way Sync)
-  // Ini MENJAMIN token yang dibuat panitia TIDAK AKAN PERNAH HILANG meski server restart
   try {
     const res = await authFetch(`/api/admin/pemilih?wilayah_id=${encodeURIComponent(wId)}&status=${encodeURIComponent(status)}&search=${encodeURIComponent(query)}`);
     if (res.ok) {
       const result = await res.json();
       if (result.success && Array.isArray(result.data)) {
         const mergedMap = new Map();
-        
-        // Simpan semua pemilih lokal
-        localList.forEach(p => mergedMap.set(p.kode_pemilih.toUpperCase(), p));
 
-        // Gabungkan data dari database server
-        result.data.forEach(p => {
+        // Simpan semua pemilih lokal yang belum dihapus
+        localList.forEach((p) => {
           const key = p.kode_pemilih.toUpperCase();
+          if (!deletedSet.has(key)) {
+            mergedMap.set(key, p);
+          }
+        });
+
+        // Gabungkan data dari database server (KECUALI yang ada di deletedSet)
+        result.data.forEach((p) => {
+          const key = p.kode_pemilih.toUpperCase();
+          if (deletedSet.has(key)) {
+            // Hapus di server secara senyap agar server tidak menyimpannya lagi
+            authFetch('/api/admin/pemilih/' + encodeURIComponent(key), { method: 'DELETE' }).catch(() => {});
+            return;
+          }
+
           if (mergedMap.has(key)) {
             const existing = mergedMap.get(key);
-            // Perbarui status jika sudah memilih di server
             if (p.sudah_memilih !== undefined) existing.sudah_memilih = p.sudah_memilih;
             if (p.waktu_memilih !== undefined) existing.waktu_memilih = p.waktu_memilih;
           } else {
@@ -989,11 +1059,6 @@ async function loadPemilihData() {
 
         localList = Array.from(mergedMap.values());
         saveLocalPemilihList(localList);
-
-        // Jika ada data lokal baru yang belum masuk ke server, kirim ke server secara senyap
-        if (localList.length > result.data.length) {
-          syncLocalVotersToServerSilently(localList);
-        }
       }
     }
   } catch (err) {
@@ -1025,16 +1090,27 @@ function renderPemilihTable(pemilihList) {
   if (!domA.pemilihTableBody) return;
   domA.pemilihTableBody.innerHTML = '';
 
+  // Reset centang pilih semua
+  if (domA.checkSelectAllPemilih) {
+    domA.checkSelectAllPemilih.checked = false;
+  }
+  updateSelectionBarUI();
+
   if (pemilihList.length === 0) {
-    domA.pemilihTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#94a3b8;">Tidak ada data pemilih yang sesuai kriteria pencarian/filter.</td></tr>';
+    domA.pemilihTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">Tidak ada data pemilih yang sesuai kriteria pencarian/filter.</td></tr>';
     return;
   }
 
   pemilihList.forEach((p, idx) => {
     const tr = document.createElement('tr');
-    const isVoted = p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase());
+    const cleanCode = p.kode_pemilih.toUpperCase();
+    const isVoted = p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + cleanCode);
+    const isChecked = selectedPemilihCodes.has(cleanCode);
 
     tr.innerHTML = `
+      <td style="text-align: center;">
+        <input type="checkbox" class="pemilih-row-check" value="${cleanCode}" ${isChecked ? 'checked' : ''} style="width: 17px; height: 17px; cursor: pointer;" onchange="handleToggleRowCheck('${cleanCode}', this.checked)">
+      </td>
       <td style="text-align: center;">${idx + 1}</td>
       <td style="font-weight: 600; color: #1e293b;">${p.nama_pemilih || 'Warga'}</td>
       <td style="font-family: monospace; font-weight: 800; font-size: 0.95rem; color: #1d4ed8;">${p.kode_pemilih}</td>
@@ -1145,25 +1221,161 @@ async function saveAddPemilih() {
   loadStats();
 }
 
-// 7C. HAPUS PEMILIH
-window.deletePemilih = async function (kode) {
-  if (!confirm(`Apakah Anda yakin ingin menghapus pemilih dengan Kode "${kode}" dari DPT?`)) {
+// 7C. SELEKSI KOTAK CENTANG (MULTI-SELECT) & HAPUS MASSAL PEMILIH
+window.handleToggleRowCheck = function (code, isChecked) {
+  const clean = String(code).trim().toUpperCase();
+  if (isChecked) {
+    selectedPemilihCodes.add(clean);
+  } else {
+    selectedPemilihCodes.delete(clean);
+  }
+  updateSelectionBarUI();
+};
+
+function handleToggleSelectAll(isChecked) {
+  const checkboxes = document.querySelectorAll('.pemilih-row-check');
+  checkboxes.forEach((cb) => {
+    cb.checked = isChecked;
+    const clean = cb.value.toUpperCase();
+    if (isChecked) {
+      selectedPemilihCodes.add(clean);
+    } else {
+      selectedPemilihCodes.delete(clean);
+    }
+  });
+  updateSelectionBarUI();
+}
+
+function updateSelectionBarUI() {
+  const count = selectedPemilihCodes.size;
+  if (domA.countSelectedPemilih) {
+    domA.countSelectedPemilih.textContent = count;
+  }
+  if (domA.selectionBarPemilih) {
+    domA.selectionBarPemilih.style.display = count > 0 ? 'flex' : 'none';
+  }
+}
+
+function cancelSelection() {
+  selectedPemilihCodes.clear();
+  const checkboxes = document.querySelectorAll('.pemilih-row-check');
+  checkboxes.forEach((cb) => {
+    cb.checked = false;
+  });
+  if (domA.checkSelectAllPemilih) {
+    domA.checkSelectAllPemilih.checked = false;
+  }
+  updateSelectionBarUI();
+}
+
+// Hapus Pemilih yang Telah Dicentang / Ditandai
+async function deleteSelectedPemilih() {
+  const count = selectedPemilihCodes.size;
+  if (count === 0) {
+    alert('Silakan tandai atau centang pemilih yang ingin dihapus terlebih dahulu.');
+    return;
+  }
+
+  if (!confirm(`Apakah Anda yakin ingin menghapus ${count} pemilih yang telah ditandai dari DPT?\n\nTindakan ini permanen dan kode pemilih tidak akan dapat digunakan lagi.`)) {
+    return;
+  }
+
+  const codesToDelete = Array.from(selectedPemilihCodes);
+  addMultipleDeletedCodes(codesToDelete);
+
+  // Hapus dari penyimpanan lokal
+  let list = getLocalPemilihList();
+  const deleteSet = new Set(codesToDelete);
+  list = list.filter((p) => !deleteSet.has(p.kode_pemilih.toUpperCase()));
+  saveLocalPemilihList(list);
+
+  // Bersihkan hak suara lokal
+  codesToDelete.forEach((c) => localStorage.removeItem('voted_' + c));
+
+  // Hapus dari server database
+  try {
+    await authFetch('/api/admin/pemilih/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ codes: codesToDelete })
+    });
+  } catch (err) {}
+
+  selectedPemilihCodes.clear();
+  alert(`✅ SUKSES: Sebanyak ${count} pemilih yang ditandai telah berhasil dihapus secara permanen dari DPT.`);
+  loadPemilihData();
+  loadStats();
+}
+
+// Hapus Semua Pemilih (Seluruh DPT atau Pemilih per Wilayah yang Sedang Difilter)
+async function deleteAllPemilih() {
+  const wId = domA.filterWilayahPemilih ? domA.filterWilayahPemilih.value : 'all';
+  let targetText = 'SELURUH data pemilih tetap (DPT)';
+  if (wId !== 'all') {
+    const w = LOCAL_ADMIN_WILAYAH.find((item) => item.id === parseInt(wId, 10));
+    targetText = `seluruh pemilih untuk wilayah "${w ? w.nama_wilayah : 'Wilayah ' + wId}"`;
+  }
+
+  const promptText = prompt(`⚠️ PERINGATAN PENGHAPUSAN MASSAL:\nAnda akan menghapus ${targetText}.\n\nKetik "HAPUS" untuk mengonfirmasi tindakan ini:`);
+  if (promptText !== 'HAPUS') {
+    if (promptText !== null) alert('Teks konfirmasi tidak sesuai! Penghapusan dibatalkan.');
     return;
   }
 
   let list = getLocalPemilihList();
-  list = list.filter((p) => p.kode_pemilih.toUpperCase() !== kode.toUpperCase());
+  const deletedCodes = [];
+  if (wId !== 'all') {
+    list = list.filter((p) => {
+      if (p.wilayah_id === parseInt(wId, 10)) {
+        deletedCodes.push(p.kode_pemilih.toUpperCase());
+        return false;
+      }
+      return true;
+    });
+  } else {
+    list.forEach((p) => deletedCodes.push(p.kode_pemilih.toUpperCase()));
+    list = [];
+  }
+
+  addMultipleDeletedCodes(deletedCodes);
+  saveLocalPemilihList(list);
+  selectedPemilihCodes.clear();
+
+  // Kirim perintah hapus ke server
+  try {
+    await authFetch('/api/admin/pemilih/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ all: true, wilayah_id: wId })
+    });
+  } catch (err) {}
+
+  alert(`✅ SUKSES: ${targetText} telah berhasil dihapus secara permanen.`);
+  loadPemilihData();
+  loadStats();
+}
+
+// Hapus 1 Pemilih Tunggal
+window.deletePemilih = async function (kode) {
+  const clean = String(kode).trim().toUpperCase();
+  if (!confirm(`Apakah Anda yakin ingin menghapus pemilih dengan Kode "${clean}" dari DPT?`)) {
+    return;
+  }
+
+  addDeletedVoterCode(clean);
+
+  let list = getLocalPemilihList();
+  list = list.filter((p) => p.kode_pemilih.toUpperCase() !== clean);
   saveLocalPemilihList(list);
 
-  localStorage.removeItem('voted_' + kode.toUpperCase());
+  selectedPemilihCodes.delete(clean);
+  localStorage.removeItem('voted_' + clean);
 
   try {
-    await authFetch('/api/admin/pemilih/' + encodeURIComponent(kode), {
+    await authFetch('/api/admin/pemilih/' + encodeURIComponent(clean), {
       method: 'DELETE'
     });
   } catch (e) {}
 
-  alert(`Data pemilih "${kode}" berhasil dihapus.`);
+  alert(`Data pemilih "${clean}" berhasil dihapus secara permanen.`);
   loadPemilihData();
   loadStats();
 };
@@ -1530,46 +1742,65 @@ async function executeGeneratePemilih() {
   domA.btnSubmitGen.disabled = true;
   domA.btnSubmitGen.textContent = 'Memproses...';
 
-  const list = getLocalPemilihList();
-  const newCodes = [];
-  const existingCodes = new Set(list.map((p) => p.kode_pemilih.toUpperCase()));
-
-  for (let i = 1; i <= jumlah; i++) {
-    let code = '';
-    let attempts = 0;
-    do {
-      const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-      code = `${prefix}-${rand}`;
-      attempts++;
-    } while (existingCodes.has(code) && attempts < 100);
-
-    existingCodes.add(code);
-    newCodes.push(code);
-
-    list.unshift({
-      id: Date.now() + i,
-      kode_pemilih: code,
-      wilayah_id: wId,
-      nama_wilayah: w.nama_wilayah,
-      nama_pemilih: `Pemilih ${w.nama_wilayah} #${i}`,
-      sudah_memilih: 0,
-      waktu_memilih: null
-    });
-  }
-
-  saveLocalPemilihList(list);
+  let newVoters = [];
 
   try {
-    await authFetch('/api/admin/generate-pemilih', {
+    const res = await authFetch('/api/admin/generate-pemilih', {
       method: 'POST',
       body: JSON.stringify({ wilayah_id: wId, jumlah, prefix })
     });
-  } catch (err) {}
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.voters) && data.voters.length > 0) {
+        newVoters = data.voters;
+      }
+    }
+  } catch (err) {
+    console.warn('Generate server gagal/offline, beralih ke lokal:', err);
+  }
+
+  // Fallback lokal hanya jika server offline
+  if (newVoters.length === 0) {
+    const list = getLocalPemilihList();
+    const existingCodes = new Set(list.map((p) => p.kode_pemilih.toUpperCase()));
+    for (let i = 1; i <= jumlah; i++) {
+      let code = '';
+      let attempts = 0;
+      do {
+        const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+        code = `${prefix}-${rand}`;
+        attempts++;
+      } while (existingCodes.has(code) && attempts < 100);
+
+      existingCodes.add(code);
+      newVoters.push({
+        id: Date.now() + i,
+        kode_pemilih: code,
+        wilayah_id: wId,
+        nama_wilayah: w.nama_wilayah,
+        nama_pemilih: `Pemilih ${w.nama_wilayah} #${i}`,
+        sudah_memilih: 0,
+        waktu_memilih: null
+      });
+    }
+  }
+
+  // Tambahkan data pemilih yang tepat ke localList
+  const list = getLocalPemilihList();
+  const existingCodes = new Set(list.map((p) => p.kode_pemilih.toUpperCase()));
+  newVoters.forEach((v) => {
+    if (!existingCodes.has(v.kode_pemilih.toUpperCase())) {
+      list.unshift(v);
+      existingCodes.add(v.kode_pemilih.toUpperCase());
+    }
+  });
+  saveLocalPemilihList(list);
 
   domA.btnSubmitGen.disabled = false;
   domA.btnSubmitGen.textContent = 'Generate Sekarang';
 
-  alert(`BERHASIL: Dibuat ${newCodes.length} kode pemilih baru untuk ${w.nama_wilayah}!\n\nContoh Kode:\n${newCodes.slice(0, 6).join(', ')}`);
+  const sampleCodes = newVoters.slice(0, 6).map((v) => v.kode_pemilih).join(', ');
+  alert(`BERHASIL: Dibuat tepat ${newVoters.length} kode pemilih baru untuk ${w.nama_wilayah}!\n\nContoh Kode:\n${sampleCodes}`);
   closeGenModal();
   loadPemilihData();
   loadStats();

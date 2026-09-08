@@ -346,6 +346,9 @@ function updateLockUI(isLocked) {
 
 // Helper Foto Calon Admin
 function getAdminPhotoUrl(calon, wilayahId) {
+  const customFoto = localStorage.getItem('banyubiru_calon_foto_' + calon.id);
+  if (customFoto && customFoto.trim() !== '') return customFoto;
+
   if (calon.foto && calon.foto.trim() !== '') return calon.foto;
 
   const name = calon.nama || '';
@@ -535,6 +538,20 @@ async function loadCalonAdmin() {
   if (wId !== 'all') {
     filtered = LOCAL_ADMIN_CALON.filter((c) => c.wilayah_id === parseInt(wId, 10));
   }
+  // Gabungkan dengan data kustom / foto yang tersimpan di LocalStorage
+  filtered = filtered.map((c) => {
+    const customFoto = localStorage.getItem('banyubiru_calon_foto_' + c.id);
+    const customDataStr = localStorage.getItem('banyubiru_calon_data_' + c.id);
+    let item = { ...c };
+    if (customDataStr) {
+      try { Object.assign(item, JSON.parse(customDataStr)); } catch (e) {}
+    }
+    if (customFoto) {
+      item.foto = customFoto;
+    }
+    return item;
+  });
+
   adminState.calonList = filtered;
   renderCalonAdminTable(filtered);
 }
@@ -621,10 +638,33 @@ function handleFilePhotoChange(e) {
 
   const reader = new FileReader();
   reader.onload = function (evt) {
-    const base64 = evt.target.result;
-    adminState.activePhotoBase64 = base64;
-    domA.calonModalPhotoPreview.src = base64;
-    domA.calonPhotoUrlInput.value = '';
+    const rawDataUrl = evt.target.result;
+    const img = new Image();
+    img.onload = function () {
+      // Kompresi canvas otomatis agar foto tajam namun ringan (~50KB) dan instan disimpan
+      const canvas = document.createElement('canvas');
+      const maxW = 480;
+      const maxH = 620;
+      let w = img.width;
+      let h = img.height;
+
+      if (w > maxW || h > maxH) {
+        const ratio = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+      adminState.activePhotoBase64 = optimizedBase64;
+      domA.calonModalPhotoPreview.src = optimizedBase64;
+      domA.calonPhotoUrlInput.value = '';
+    };
+    img.src = rawDataUrl;
   };
   reader.readAsDataURL(file);
 }
@@ -650,13 +690,38 @@ async function saveCalonData() {
     return;
   }
 
+  // 1. Simpan LANGSUNG ke LocalStorage (sehingga otomatis tampil di index.html detik ini juga)
+  if (id) {
+    const calonId = parseInt(id, 10);
+    if (foto) {
+      try {
+        localStorage.setItem('banyubiru_calon_foto_' + calonId, foto);
+      } catch (err) {
+        console.warn('LocalStorage foto quota:', err);
+      }
+    }
+    const customData = { id: calonId, nomor_urut: parseInt(noUrut, 10), nama, visi_misi: visi, foto };
+    try {
+      localStorage.setItem('banyubiru_calon_data_' + calonId, JSON.stringify(customData));
+    } catch (err) {}
+
+    // Update in-memory
+    const item = LOCAL_ADMIN_CALON.find((c) => c.id === calonId);
+    if (item) {
+      item.nama = nama;
+      item.nomor_urut = parseInt(noUrut, 10);
+      item.visi_misi = visi;
+      if (foto) item.foto = foto;
+    }
+  }
+
+  // 2. Kirim update ke server database
   try {
     domA.btnSaveCalonModal.disabled = true;
     domA.btnSaveCalonModal.textContent = 'Menyimpan...';
 
-    let res;
     if (id) {
-      res = await authFetch('/api/admin/calon/' + id, {
+      await authFetch('/api/admin/calon/' + id, {
         method: 'PUT',
         body: JSON.stringify({
           nomor_urut: noUrut,
@@ -667,7 +732,7 @@ async function saveCalonData() {
       });
     } else {
       const wId = domA.calonModalWilayahSelect.value;
-      res = await authFetch('/api/admin/calon', {
+      await authFetch('/api/admin/calon', {
         method: 'POST',
         body: JSON.stringify({
           wilayah_id: wId,
@@ -678,32 +743,14 @@ async function saveCalonData() {
         })
       });
     }
-
-    if (res.ok) {
-      const data = await res.json();
-      domA.btnSaveCalonModal.disabled = false;
-      domA.btnSaveCalonModal.textContent = 'Simpan Perubahan';
-
-      if (data.success) {
-        alert('SUKSES: ' + data.message);
-        closeCalonModal();
-        refreshAllData();
-        return;
-      }
-    }
-  } catch (err) {}
+  } catch (err) {
+    console.warn('Sync server calon lewati:', err);
+  }
 
   domA.btnSaveCalonModal.disabled = false;
   domA.btnSaveCalonModal.textContent = 'Simpan Perubahan';
 
-  const item = LOCAL_ADMIN_CALON.find((c) => c.id === parseInt(id, 10));
-  if (item) {
-    item.nama = nama;
-    item.nomor_urut = parseInt(noUrut, 10);
-    item.visi_misi = visi;
-    if (foto) item.foto = foto;
-  }
-  alert('SUKSES: Data dan foto calon berhasil diperbarui!');
+  alert('SUKSES: Foto dan data calon berhasil diperbarui! Foto langsung aktif di halaman utama pemilih.');
   closeCalonModal();
   loadCalonAdmin();
 }

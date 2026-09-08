@@ -287,8 +287,19 @@ function switchWilayah(wilayahId) {
     if (dom.scheduleLokasi) dom.scheduleLokasi.textContent = '📍 ' + selected.lokasi;
   }
 
-  // 1. Tampilkan data calon lokal seketika tanpa loading spinner
-  const filtered = LOCAL_CALON.filter((c) => c.wilayah_id === targetId);
+  // 1. Tampilkan data calon lokal seketika dengan penggabungan kustom dari Admin
+  const filtered = LOCAL_CALON.filter((c) => c.wilayah_id === targetId).map((c) => {
+    const customFoto = localStorage.getItem('banyubiru_calon_foto_' + c.id);
+    const customDataStr = localStorage.getItem('banyubiru_calon_data_' + c.id);
+    let item = { ...c };
+    if (customDataStr) {
+      try { Object.assign(item, JSON.parse(customDataStr)); } catch (e) {}
+    }
+    if (customFoto) {
+      item.foto = customFoto;
+    }
+    return item;
+  });
   appState.calonList = filtered;
   renderCalonCards(filtered);
 
@@ -305,8 +316,20 @@ async function syncCalonFromServer(wilayahId) {
     if (result.success && Array.isArray(result.calon) && result.calon.length > 0) {
       // Hanya re-render jika pemilih masih di wilayah ini
       if (appState.selectedWilayahId === wilayahId) {
-        appState.calonList = result.calon;
-        renderCalonCards(result.calon);
+        const mergedCalon = result.calon.map((c) => {
+          const customFoto = localStorage.getItem('banyubiru_calon_foto_' + c.id);
+          const customDataStr = localStorage.getItem('banyubiru_calon_data_' + c.id);
+          let item = { ...c };
+          if (customDataStr) {
+            try { Object.assign(item, JSON.parse(customDataStr)); } catch (e) {}
+          }
+          if (customFoto) {
+            item.foto = customFoto;
+          }
+          return item;
+        });
+        appState.calonList = mergedCalon;
+        renderCalonCards(mergedCalon);
       }
     }
   } catch (err) {
@@ -314,8 +337,15 @@ async function syncCalonFromServer(wilayahId) {
   }
 }
 
-// Helper: Tentukan Foto Resmi Calon
+// Helper: Tentukan Foto Resmi Calon (Prioritaskan foto kustom Admin)
 function getCandidatePhotoUrl(calon) {
+  // 1. Cek apakah ada foto kustom yang diunggah dari Dashboard Admin
+  const customFoto = localStorage.getItem('banyubiru_calon_foto_' + calon.id);
+  if (customFoto && customFoto.trim() !== '') {
+    return customFoto;
+  }
+
+  // 2. Cek foto dari server database
   if (calon.foto && calon.foto.trim() !== '') {
     return calon.foto;
   }
@@ -343,6 +373,15 @@ function getCandidatePhotoUrl(calon) {
 
   return 'img/candidates/calon_male_jas.svg';
 }
+
+// Sinkronisasi otomatis jika admin mengubah foto di tab lain
+window.addEventListener('storage', (e) => {
+  if (e.key && (e.key.startsWith('banyubiru_calon_foto_') || e.key.startsWith('banyubiru_calon_data_'))) {
+    if (appState.selectedWilayahId) {
+      switchWilayah(appState.selectedWilayahId);
+    }
+  }
+});
 
 // Render Card Calon Lengkap dengan Foto
 function renderCalonCards(calonList) {

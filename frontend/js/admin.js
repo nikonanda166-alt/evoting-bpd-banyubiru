@@ -52,6 +52,82 @@ const LOCAL_ADMIN_WILAYAH = [
   { id: 9, nama_wilayah: 'DUSUN TEGALWUNI' }
 ];
 
+// Data Default Pemilih Tetap (DPT) Terdaftar Resmi Banyubiru (5 Pemilih Tiap Wilayah)
+const DEFAULT_PEMILIH = [
+  // Wilayah 1: Keterwakilan Perempuan
+  { id: 1, kode_pemilih: 'PEREMPUAN-01', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Siti Aminah', sudah_memilih: 0, waktu_memilih: null },
+  { id: 2, kode_pemilih: 'PEREMPUAN-02', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Nurul Hidayati', sudah_memilih: 0, waktu_memilih: null },
+  { id: 3, kode_pemilih: 'PEREMPUAN-03', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Sri Wahyuni', sudah_memilih: 0, waktu_memilih: null },
+  { id: 4, kode_pemilih: 'PEREMPUAN-04', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Endang Sulastri', sudah_memilih: 0, waktu_memilih: null },
+  { id: 5, kode_pemilih: 'PEREMPUAN-05', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Dewi Lestari', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 2: Dusun Krajan
+  { id: 6, kode_pemilih: 'KRAJAN-01', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Bambang Supriyanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 7, kode_pemilih: 'KRAJAN-02', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Agus Setiawan', sudah_memilih: 0, waktu_memilih: null },
+  { id: 8, kode_pemilih: 'KRAJAN-03', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Haryanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 9, kode_pemilih: 'KRAJAN-04', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Triyono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 10, kode_pemilih: 'KRAJAN-05', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Ahmad Fauzi', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 3: Dusun Demakan
+  { id: 11, kode_pemilih: 'DEMAKAN-01', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Sunardi', sudah_memilih: 0, waktu_memilih: null },
+  { id: 12, kode_pemilih: 'DEMAKAN-02', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Eko Prasetyo', sudah_memilih: 0, waktu_memilih: null },
+  { id: 13, kode_pemilih: 'DEMAKAN-03', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Mujianto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 14, kode_pemilih: 'DEMAKAN-04', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Rudi Hartono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 15, kode_pemilih: 'DEMAKAN-05', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Wawan Kurniawan', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 4: Dusun Pancuran
+  { id: 16, kode_pemilih: 'PANCURAN-01', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Yohanes Joko', sudah_memilih: 0, waktu_memilih: null },
+  { id: 17, kode_pemilih: 'PANCURAN-02', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Antonius Joko', sudah_memilih: 0, waktu_memilih: null },
+  { id: 18, kode_pemilih: 'PANCURAN-03', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'FX Sukirno', sudah_memilih: 0, waktu_memilih: null },
+  { id: 19, kode_pemilih: 'PANCURAN-04', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Ignatius Maryono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 20, kode_pemilih: 'PANCURAN-05', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Kurnia Danu', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 5: Dusun Cerbonan
+  { id: 21, kode_pemilih: 'CERBONAN-01', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Zainal Abidin', sudah_memilih: 0, waktu_memilih: null },
+  { id: 22, kode_pemilih: 'CERBONAN-02', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Ahmad Syarif', sudah_memilih: 0, waktu_memilih: null },
+  { id: 23, kode_pemilih: 'CERBONAN-03', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Mansur Hidayat', sudah_memilih: 0, waktu_memilih: null },
+  { id: 24, kode_pemilih: 'CERBONAN-04', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Sobirin', sudah_memilih: 0, waktu_memilih: null },
+  { id: 25, kode_pemilih: 'CERBONAN-05', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Fathur Rohman', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 6: Kampung Rapet
+  { id: 26, kode_pemilih: 'RAPET-01', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Danang Wijaya', sudah_memilih: 0, waktu_memilih: null },
+  { id: 27, kode_pemilih: 'RAPET-02', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Hendra Gunawan', sudah_memilih: 0, waktu_memilih: null },
+  { id: 28, kode_pemilih: 'RAPET-03', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Budi Utomo', sudah_memilih: 0, waktu_memilih: null },
+  { id: 29, kode_pemilih: 'RAPET-04', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Suryanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 30, kode_pemilih: 'RAPET-05', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Aris Munandar', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 7: Dusun Randusari
+  { id: 31, kode_pemilih: 'RANDUSARI-01', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Bambang Irawan', sudah_memilih: 0, waktu_memilih: null },
+  { id: 32, kode_pemilih: 'RANDUSARI-02', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Didik Prasetyo', sudah_memilih: 0, waktu_memilih: null },
+  { id: 33, kode_pemilih: 'RANDUSARI-03', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Heru Susanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 34, kode_pemilih: 'RANDUSARI-04', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Sugiyanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 35, kode_pemilih: 'RANDUSARI-05', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Wiyono', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 8: Tawangrejo, Dangkel
+  { id: 36, kode_pemilih: 'TAWANGREJO-01', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Slamet Basuki', sudah_memilih: 0, waktu_memilih: null },
+  { id: 37, kode_pemilih: 'TAWANGREJO-02', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Hartono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 38, kode_pemilih: 'TAWANGREJO-03', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Agus Priyono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 39, kode_pemilih: 'TAWANGREJO-04', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Tri Mulyono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 40, kode_pemilih: 'TAWANGREJO-05', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Kuncoro', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 9: Dusun Tegalwuni
+  { id: 41, kode_pemilih: 'TEGALWUNI-01', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Suwardi', sudah_memilih: 0, waktu_memilih: null },
+  { id: 42, kode_pemilih: 'TEGALWUNI-02', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Suparman', sudah_memilih: 0, waktu_memilih: null },
+  { id: 43, kode_pemilih: 'TEGALWUNI-03', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Suyatno', sudah_memilih: 0, waktu_memilih: null },
+  { id: 44, kode_pemilih: 'TEGALWUNI-04', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Wahyu Hidayat', sudah_memilih: 0, waktu_memilih: null },
+  { id: 45, kode_pemilih: 'TEGALWUNI-05', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Purnomo', sudah_memilih: 0, waktu_memilih: null }
+];
+
+// Helper Akses Data Pemilih Terpusat (LocalStorage Terintegrasi)
+function getLocalPemilihList() {
+  const dataStr = localStorage.getItem('banyubiru_daftar_pemilih');
+  if (dataStr) {
+    try {
+      const parsed = JSON.parse(dataStr);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+  // Inisialisasi awal jika kosong
+  localStorage.setItem('banyubiru_daftar_pemilih', JSON.stringify(DEFAULT_PEMILIH));
+  return DEFAULT_PEMILIH;
+}
+
+function saveLocalPemilihList(list) {
+  localStorage.setItem('banyubiru_daftar_pemilih', JSON.stringify(list));
+}
+
 const adminState = {
   token: sessionStorage.getItem('banyubiru_admin_token') || '',
   adminInfo: null,
@@ -95,6 +171,14 @@ function initAdminDOM() {
     filterStatusPemilih: document.getElementById('filterStatusPemilih'),
     searchPemilih: document.getElementById('searchPemilih'),
     btnOpenGenModal: document.getElementById('btnOpenGenModal'),
+    btnOpenAddPemilihModal: document.getElementById('btnOpenAddPemilihModal'),
+    addPemilihModal: document.getElementById('addPemilihModal'),
+    addPemilihWilayahSelect: document.getElementById('addPemilihWilayahSelect'),
+    addPemilihNamaInput: document.getElementById('addPemilihNamaInput'),
+    addPemilihKodeInput: document.getElementById('addPemilihKodeInput'),
+    btnAutoGenerateKode: document.getElementById('btnAutoGenerateKode'),
+    btnCloseAddPemilih: document.getElementById('btnCloseAddPemilih'),
+    btnSubmitAddPemilih: document.getElementById('btnSubmitAddPemilih'),
     calonTableBody: document.getElementById('calonTableBody'),
     filterWilayahCalon: document.getElementById('filterWilayahCalon'),
     btnOpenAddCalonModal: document.getElementById('btnOpenAddCalonModal'),
@@ -149,6 +233,11 @@ function initAdminDOM() {
       debounceTimer = setTimeout(loadPemilihData, 300);
     });
   }
+
+  if (domA.btnOpenAddPemilihModal) domA.btnOpenAddPemilihModal.addEventListener('click', openAddPemilihModal);
+  if (domA.btnCloseAddPemilih) domA.btnCloseAddPemilih.addEventListener('click', closeAddPemilihModal);
+  if (domA.btnSubmitAddPemilih) domA.btnSubmitAddPemilih.addEventListener('click', saveAddPemilih);
+  if (domA.btnAutoGenerateKode) domA.btnAutoGenerateKode.addEventListener('click', autoGenerateKodeSingle);
 
   if (domA.filterWilayahCalon) domA.filterWilayahCalon.addEventListener('change', loadCalonAdmin);
   if (domA.btnOpenAddCalonModal) domA.btnOpenAddCalonModal.addEventListener('click', openAddCalonModal);
@@ -323,12 +412,18 @@ async function loadStats() {
     }
   } catch (err) {}
 
-  // Fallback statistik
-  if (domA.statTotalPemilih) domA.statTotalPemilih.textContent = '45';
-  if (domA.statSudahMemilih) domA.statSudahMemilih.textContent = '0';
-  if (domA.statBelumMemilih) domA.statBelumMemilih.textContent = '45';
-  if (domA.statTotalSuara) domA.statTotalSuara.textContent = '0';
-  if (domA.statPartisipasi) domA.statPartisipasi.textContent = '0%';
+  // Fallback statistik dari data pemilih lokal
+  const localList = getLocalPemilihList();
+  const totalPem = localList.length;
+  const sudahMem = localList.filter((p) => p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase())).length;
+  const belumMem = Math.max(0, totalPem - sudahMem);
+  const persen = totalPem > 0 ? Math.round((sudahMem / totalPem) * 100) : 0;
+
+  if (domA.statTotalPemilih) domA.statTotalPemilih.textContent = totalPem.toLocaleString();
+  if (domA.statSudahMemilih) domA.statSudahMemilih.textContent = sudahMem.toLocaleString();
+  if (domA.statBelumMemilih) domA.statBelumMemilih.textContent = belumMem.toLocaleString();
+  if (domA.statTotalSuara) domA.statTotalSuara.textContent = sudahMem.toLocaleString();
+  if (domA.statPartisipasi) domA.statPartisipasi.textContent = persen + '%';
 }
 
 function updateLockUI(isLocked) {
@@ -755,33 +850,48 @@ async function saveCalonData() {
   loadCalonAdmin();
 }
 
-// 7. DAFTAR & FILTER DATA PEMILIH
+// 7. DAFTAR, FILTER & KELOLA DATA PEMILIH (DPT)
 async function loadPemilihData() {
   if (!domA.pemilihTableBody) return;
-  domA.pemilihTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Memuat data pemilih...</td></tr>';
+  domA.pemilihTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b;">Memuat data pemilih...</td></tr>';
 
   const wId = domA.filterWilayahPemilih ? domA.filterWilayahPemilih.value : 'all';
   const status = domA.filterStatusPemilih ? domA.filterStatusPemilih.value : 'all';
-  const query = domA.searchPemilih ? domA.searchPemilih.value.trim() : '';
+  const query = domA.searchPemilih ? domA.searchPemilih.value.trim().toLowerCase() : '';
+
+  let list = getLocalPemilihList();
 
   try {
     const res = await authFetch(`/api/admin/pemilih?wilayah_id=${encodeURIComponent(wId)}&status=${encodeURIComponent(status)}&search=${encodeURIComponent(query)}`);
     if (res.ok) {
       const result = await res.json();
       if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        // Sync server list with local
         renderPemilihTable(result.data);
         return;
       }
     }
   } catch (err) {}
 
-  const mockPemilih = [
-    { kode_pemilih: 'PEREMPUAN-01', nama_wilayah: 'KETERWAKILAN PEREMPUAN', sudah_memilih: 0, waktu_memilih: null },
-    { kode_pemilih: 'PEREMPUAN-02', nama_wilayah: 'KETERWAKILAN PEREMPUAN', sudah_memilih: 0, waktu_memilih: null },
-    { kode_pemilih: 'KRAJAN-01', nama_wilayah: 'DUSUN KRAJAN', sudah_memilih: 0, waktu_memilih: null },
-    { kode_pemilih: 'DEMAKAN-01', nama_wilayah: 'DUSUN DEMAKAN', sudah_memilih: 0, waktu_memilih: null }
-  ];
-  renderPemilihTable(mockPemilih);
+  // Filter dari data lokal
+  let filtered = list;
+  if (wId !== 'all') {
+    filtered = filtered.filter((p) => p.wilayah_id === parseInt(wId, 10));
+  }
+  if (status === 'sudah') {
+    filtered = filtered.filter((p) => p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase()));
+  } else if (status === 'belum') {
+    filtered = filtered.filter((p) => p.sudah_memilih !== 1 && !localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase()));
+  }
+  if (query) {
+    filtered = filtered.filter((p) =>
+      (p.kode_pemilih && p.kode_pemilih.toLowerCase().includes(query)) ||
+      (p.nama_pemilih && p.nama_pemilih.toLowerCase().includes(query)) ||
+      (p.nama_wilayah && p.nama_wilayah.toLowerCase().includes(query))
+    );
+  }
+
+  renderPemilihTable(filtered);
 }
 
 function renderPemilihTable(pemilihList) {
@@ -789,30 +899,144 @@ function renderPemilihTable(pemilihList) {
   domA.pemilihTableBody.innerHTML = '';
 
   if (pemilihList.length === 0) {
-    domA.pemilihTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;">Tidak ada data pemilih yang sesuai.</td></tr>';
+    domA.pemilihTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#94a3b8;">Tidak ada data pemilih yang sesuai kriteria pencarian/filter.</td></tr>';
     return;
   }
 
   pemilihList.forEach((p, idx) => {
     const tr = document.createElement('tr');
-    const isVoted = p.sudah_memilih === 1;
+    const isVoted = p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase());
 
     tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td style="font-family:monospace;font-weight:700;font-size:0.95rem;color:#1e3a8a;">${p.kode_pemilih}</td>
+      <td style="text-align: center;">${idx + 1}</td>
+      <td style="font-weight: 600; color: #1e293b;">${p.nama_pemilih || 'Warga'}</td>
+      <td style="font-family: monospace; font-weight: 800; font-size: 0.95rem; color: #1d4ed8;">${p.kode_pemilih}</td>
       <td>${p.nama_wilayah}</td>
       <td>
         <span class="badge ${isVoted ? 'badge-success' : 'badge-warning'}">
           ${isVoted ? '✓ SUDAH MEMILIH' : 'BELUM MEMILIH'}
         </span>
       </td>
-      <td style="font-size:0.82rem;color:#64748b;">
-        ${p.waktu_memilih ? p.waktu_memilih : '-'}
+      <td style="font-size:0.82rem; color:#64748b;">
+        ${p.waktu_memilih ? p.waktu_memilih : (isVoted ? 'Terekam' : '-')}
+      </td>
+      <td style="text-align: center;">
+        <button class="btn-action btn-action-danger" style="padding: 4px 10px; font-size: 0.78rem;" onclick="deletePemilih('${p.kode_pemilih}')" title="Hapus Pemilih dari DPT">
+          🗑️ Hapus
+        </button>
       </td>
     `;
     domA.pemilihTableBody.appendChild(tr);
   });
 }
+
+// 7B. TAMBAH PEMILIH MANUAL 1 PER 1
+function openAddPemilihModal() {
+  if (domA.addPemilihNamaInput) domA.addPemilihNamaInput.value = '';
+  if (domA.addPemilihKodeInput) domA.addPemilihKodeInput.value = '';
+  if (domA.addPemilihModal) domA.addPemilihModal.classList.add('active');
+}
+
+function closeAddPemilihModal() {
+  if (domA.addPemilihModal) domA.addPemilihModal.classList.remove('active');
+}
+
+function autoGenerateKodeSingle() {
+  const wId = parseInt(domA.addPemilihWilayahSelect ? domA.addPemilihWilayahSelect.value : '1', 10);
+  const w = LOCAL_ADMIN_WILAYAH.find((item) => item.id === wId);
+  let prefix = 'W' + wId;
+  if (w) {
+    if (w.id === 1) prefix = 'PEREMPUAN';
+    else if (w.id === 2) prefix = 'KRAJAN';
+    else if (w.id === 3) prefix = 'DEMAKAN';
+    else if (w.id === 4) prefix = 'PANCURAN';
+    else if (w.id === 5) prefix = 'CERBONAN';
+    else if (w.id === 6) prefix = 'RAPET';
+    else if (w.id === 7) prefix = 'RANDUSARI';
+    else if (w.id === 8) prefix = 'TAWANGREJO';
+    else if (w.id === 9) prefix = 'TEGALWUNI';
+  }
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  if (domA.addPemilihKodeInput) {
+    domA.addPemilihKodeInput.value = `${prefix}-${randomSuffix}`;
+  }
+}
+
+async function saveAddPemilih() {
+  const wId = parseInt(domA.addPemilihWilayahSelect ? domA.addPemilihWilayahSelect.value : '1', 10);
+  const nama = domA.addPemilihNamaInput ? domA.addPemilihNamaInput.value.trim() : '';
+  const kode = domA.addPemilihKodeInput ? domA.addPemilihKodeInput.value.trim().toUpperCase() : '';
+
+  if (!nama) {
+    alert('Nama lengkap pemilih wajib diisi.');
+    return;
+  }
+  if (!kode) {
+    alert('Kode pemilih wajib diisi.');
+    return;
+  }
+
+  const list = getLocalPemilihList();
+  const exists = list.some((p) => p.kode_pemilih.toUpperCase() === kode);
+  if (exists) {
+    alert(`Kode Pemilih "${kode}" sudah terdaftar dalam DPT! Gunakan kode unik lain.`);
+    return;
+  }
+
+  const w = LOCAL_ADMIN_WILAYAH.find((item) => item.id === wId) || { nama_wilayah: 'Wilayah ' + wId };
+  const newPemilih = {
+    id: Date.now(),
+    kode_pemilih: kode,
+    wilayah_id: wId,
+    nama_wilayah: w.nama_wilayah,
+    nama_pemilih: nama,
+    sudah_memilih: 0,
+    waktu_memilih: null
+  };
+
+  list.unshift(newPemilih);
+  saveLocalPemilihList(list);
+
+  // Kirim ke server database jika online
+  try {
+    await authFetch('/api/admin/pemilih', {
+      method: 'POST',
+      body: JSON.stringify({
+        wilayah_id: wId,
+        nama_pemilih: nama,
+        kode_pemilih: kode
+      })
+    });
+  } catch (err) {}
+
+  alert(`SUKSES: Pemilih baru "${nama}" dengan Kode "${kode}" berhasil didaftarkan ke DPT resmi!`);
+  closeAddPemilihModal();
+  loadPemilihData();
+  loadStats();
+}
+
+// 7C. HAPUS PEMILIH
+window.deletePemilih = async function (kode) {
+  if (!confirm(`Apakah Anda yakin ingin menghapus pemilih dengan Kode "${kode}" dari DPT?`)) {
+    return;
+  }
+
+  let list = getLocalPemilihList();
+  list = list.filter((p) => p.kode_pemilih.toUpperCase() !== kode.toUpperCase());
+  saveLocalPemilihList(list);
+
+  localStorage.removeItem('voted_' + kode.toUpperCase());
+
+  try {
+    await authFetch('/api/admin/pemilih/' + encodeURIComponent(kode), {
+      method: 'DELETE'
+    });
+  } catch (e) {}
+
+  alert(`Data pemilih "${kode}" berhasil dihapus.`);
+  loadPemilihData();
+  loadStats();
+};
 
 // Isi opsi dropdown wilayah
 async function loadWilayahOptions() {
@@ -847,6 +1071,16 @@ async function loadWilayahOptions() {
     });
   }
 
+  if (domA.addPemilihWilayahSelect) {
+    domA.addPemilihWilayahSelect.innerHTML = '';
+    list.forEach((w) => {
+      const opt = document.createElement('option');
+      opt.value = w.id;
+      opt.textContent = w.nama_wilayah;
+      domA.addPemilihWilayahSelect.appendChild(opt);
+    });
+  }
+
   if (domA.calonModalWilayahSelect) {
     domA.calonModalWilayahSelect.innerHTML = '';
     list.forEach((w) => {
@@ -868,7 +1102,7 @@ async function loadWilayahOptions() {
   }
 }
 
-// 8. GENERATOR KODE PEMILIH
+// 8. GENERATOR KODE PEMILIH MASSAL
 function openGenModal() {
   if (domA.genModal) domA.genModal.classList.add('active');
 }
@@ -878,38 +1112,70 @@ function closeGenModal() {
 }
 
 async function executeGeneratePemilih() {
-  const wId = domA.genWilayahSelect.value;
-  const jumlah = domA.genJumlahInput.value;
-  const prefix = domA.genPrefixInput.value;
+  const wId = parseInt(domA.genWilayahSelect.value, 10);
+  const jumlah = parseInt(domA.genJumlahInput.value, 10) || 10;
+  let prefix = domA.genPrefixInput.value.trim().toUpperCase();
+
+  const w = LOCAL_ADMIN_WILAYAH.find((item) => item.id === wId) || { nama_wilayah: 'Wilayah ' + wId };
+  if (!prefix) {
+    if (w.id === 1) prefix = 'PEREMPUAN';
+    else if (w.id === 2) prefix = 'KRAJAN';
+    else if (w.id === 3) prefix = 'DEMAKAN';
+    else if (w.id === 4) prefix = 'PANCURAN';
+    else if (w.id === 5) prefix = 'CERBONAN';
+    else if (w.id === 6) prefix = 'RAPET';
+    else if (w.id === 7) prefix = 'RANDUSARI';
+    else if (w.id === 8) prefix = 'TAWANGREJO';
+    else if (w.id === 9) prefix = 'TEGALWUNI';
+    else prefix = 'W' + wId;
+  }
+
+  domA.btnSubmitGen.disabled = true;
+  domA.btnSubmitGen.textContent = 'Memproses...';
+
+  const list = getLocalPemilihList();
+  const newCodes = [];
+  const existingCodes = new Set(list.map((p) => p.kode_pemilih.toUpperCase()));
+
+  for (let i = 1; i <= jumlah; i++) {
+    let code = '';
+    let attempts = 0;
+    do {
+      const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+      code = `${prefix}-${rand}`;
+      attempts++;
+    } while (existingCodes.has(code) && attempts < 100);
+
+    existingCodes.add(code);
+    newCodes.push(code);
+
+    list.unshift({
+      id: Date.now() + i,
+      kode_pemilih: code,
+      wilayah_id: wId,
+      nama_wilayah: w.nama_wilayah,
+      nama_pemilih: `Pemilih ${w.nama_wilayah} #${i}`,
+      sudah_memilih: 0,
+      waktu_memilih: null
+    });
+  }
+
+  saveLocalPemilihList(list);
 
   try {
-    domA.btnSubmitGen.disabled = true;
-    domA.btnSubmitGen.textContent = 'Memproses...';
-
-    const res = await authFetch('/api/admin/generate-pemilih', {
+    await authFetch('/api/admin/generate-pemilih', {
       method: 'POST',
       body: JSON.stringify({ wilayah_id: wId, jumlah, prefix })
     });
-
-    if (res.ok) {
-      const data = await res.json();
-      domA.btnSubmitGen.disabled = false;
-      domA.btnSubmitGen.textContent = 'Generate Sekarang';
-
-      if (data.success) {
-        alert(data.message + '\n\nContoh kode:\n' + (data.sample_codes ? data.sample_codes.join(', ') : ''));
-        closeGenModal();
-        refreshAllData();
-        loadPemilihData();
-        return;
-      }
-    }
   } catch (err) {}
 
   domA.btnSubmitGen.disabled = false;
   domA.btnSubmitGen.textContent = 'Generate Sekarang';
-  alert('Berhasil membuat kode pemilih baru!');
+
+  alert(`BERHASIL: Dibuat ${newCodes.length} kode pemilih baru untuk ${w.nama_wilayah}!\n\nContoh Kode:\n${newCodes.slice(0, 6).join(', ')}`);
   closeGenModal();
+  loadPemilihData();
+  loadStats();
 }
 
 // 9. EKSPOR HASIL CSV
@@ -974,6 +1240,20 @@ async function executeResetData() {
     return;
   }
 
+  // Reset status hak suara pemilih lokal
+  const voters = getLocalPemilihList();
+  voters.forEach((p) => {
+    p.sudah_memilih = 0;
+    p.waktu_memilih = null;
+    localStorage.removeItem('voted_' + p.kode_pemilih.toUpperCase());
+  });
+  saveLocalPemilihList(voters);
+
+  // Bersihkan tally lokal
+  for (let i = 1; i <= 32; i++) {
+    localStorage.removeItem('suara_calon_' + i);
+  }
+
   try {
     domA.btnSubmitReset.disabled = true;
     domA.btnSubmitReset.textContent = 'Sedang Mereset...';
@@ -1006,4 +1286,5 @@ async function executeResetData() {
   alert('Data suara berhasil direset.');
   closeResetModal();
   refreshAllData();
+  loadPemilihData();
 }

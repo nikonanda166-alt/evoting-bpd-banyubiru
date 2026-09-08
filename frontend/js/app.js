@@ -61,6 +61,81 @@ const LOCAL_CALON = [
   { id: 32, wilayah_id: 9, nomor_urut: 3, nama: 'Margono Hadi', foto: '', visi_misi: 'Menampung serta merealisasikan aspirasi warga dengan penuh tanggung jawab.' }
 ];
 
+// Data Default Pemilih Tetap (DPT) Terdaftar Resmi Banyubiru (5 Pemilih Tiap Wilayah)
+const DEFAULT_PEMILIH = [
+  // Wilayah 1: Keterwakilan Perempuan
+  { id: 1, kode_pemilih: 'PEREMPUAN-01', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Siti Aminah', sudah_memilih: 0, waktu_memilih: null },
+  { id: 2, kode_pemilih: 'PEREMPUAN-02', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Nurul Hidayati', sudah_memilih: 0, waktu_memilih: null },
+  { id: 3, kode_pemilih: 'PEREMPUAN-03', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Sri Wahyuni', sudah_memilih: 0, waktu_memilih: null },
+  { id: 4, kode_pemilih: 'PEREMPUAN-04', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Endang Sulastri', sudah_memilih: 0, waktu_memilih: null },
+  { id: 5, kode_pemilih: 'PEREMPUAN-05', wilayah_id: 1, nama_wilayah: 'KETERWAKILAN PEREMPUAN', nama_pemilih: 'Dewi Lestari', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 2: Dusun Krajan
+  { id: 6, kode_pemilih: 'KRAJAN-01', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Bambang Supriyanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 7, kode_pemilih: 'KRAJAN-02', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Agus Setiawan', sudah_memilih: 0, waktu_memilih: null },
+  { id: 8, kode_pemilih: 'KRAJAN-03', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Haryanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 9, kode_pemilih: 'KRAJAN-04', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Triyono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 10, kode_pemilih: 'KRAJAN-05', wilayah_id: 2, nama_wilayah: 'DUSUN KRAJAN', nama_pemilih: 'Ahmad Fauzi', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 3: Dusun Demakan
+  { id: 11, kode_pemilih: 'DEMAKAN-01', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Sunardi', sudah_memilih: 0, waktu_memilih: null },
+  { id: 12, kode_pemilih: 'DEMAKAN-02', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Eko Prasetyo', sudah_memilih: 0, waktu_memilih: null },
+  { id: 13, kode_pemilih: 'DEMAKAN-03', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Mujianto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 14, kode_pemilih: 'DEMAKAN-04', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Rudi Hartono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 15, kode_pemilih: 'DEMAKAN-05', wilayah_id: 3, nama_wilayah: 'DUSUN DEMAKAN', nama_pemilih: 'Wawan Kurniawan', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 4: Dusun Pancuran
+  { id: 16, kode_pemilih: 'PANCURAN-01', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Yohanes Joko', sudah_memilih: 0, waktu_memilih: null },
+  { id: 17, kode_pemilih: 'PANCURAN-02', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Antonius Joko', sudah_memilih: 0, waktu_memilih: null },
+  { id: 18, kode_pemilih: 'PANCURAN-03', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'FX Sukirno', sudah_memilih: 0, waktu_memilih: null },
+  { id: 19, kode_pemilih: 'PANCURAN-04', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Ignatius Maryono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 20, kode_pemilih: 'PANCURAN-05', wilayah_id: 4, nama_wilayah: 'DUSUN PANCURAN', nama_pemilih: 'Kurnia Danu', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 5: Dusun Cerbonan
+  { id: 21, kode_pemilih: 'CERBONAN-01', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Zainal Abidin', sudah_memilih: 0, waktu_memilih: null },
+  { id: 22, kode_pemilih: 'CERBONAN-02', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Ahmad Syarif', sudah_memilih: 0, waktu_memilih: null },
+  { id: 23, kode_pemilih: 'CERBONAN-03', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Mansur Hidayat', sudah_memilih: 0, waktu_memilih: null },
+  { id: 24, kode_pemilih: 'CERBONAN-04', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Sobirin', sudah_memilih: 0, waktu_memilih: null },
+  { id: 25, kode_pemilih: 'CERBONAN-05', wilayah_id: 5, nama_wilayah: 'DUSUN CERBONAN', nama_pemilih: 'Fathur Rohman', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 6: Kampung Rapet
+  { id: 26, kode_pemilih: 'RAPET-01', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Danang Wijaya', sudah_memilih: 0, waktu_memilih: null },
+  { id: 27, kode_pemilih: 'RAPET-02', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Hendra Gunawan', sudah_memilih: 0, waktu_memilih: null },
+  { id: 28, kode_pemilih: 'RAPET-03', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Budi Utomo', sudah_memilih: 0, waktu_memilih: null },
+  { id: 29, kode_pemilih: 'RAPET-04', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Suryanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 30, kode_pemilih: 'RAPET-05', wilayah_id: 6, nama_wilayah: 'KAMPUNG RAPET', nama_pemilih: 'Aris Munandar', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 7: Dusun Randusari
+  { id: 31, kode_pemilih: 'RANDUSARI-01', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Bambang Irawan', sudah_memilih: 0, waktu_memilih: null },
+  { id: 32, kode_pemilih: 'RANDUSARI-02', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Didik Prasetyo', sudah_memilih: 0, waktu_memilih: null },
+  { id: 33, kode_pemilih: 'RANDUSARI-03', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Heru Susanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 34, kode_pemilih: 'RANDUSARI-04', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Sugiyanto', sudah_memilih: 0, waktu_memilih: null },
+  { id: 35, kode_pemilih: 'RANDUSARI-05', wilayah_id: 7, nama_wilayah: 'DUSUN RANDUSARI', nama_pemilih: 'Wiyono', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 8: Tawangrejo, Dangkel
+  { id: 36, kode_pemilih: 'TAWANGREJO-01', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Slamet Basuki', sudah_memilih: 0, waktu_memilih: null },
+  { id: 37, kode_pemilih: 'TAWANGREJO-02', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Hartono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 38, kode_pemilih: 'TAWANGREJO-03', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Agus Priyono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 39, kode_pemilih: 'TAWANGREJO-04', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Tri Mulyono', sudah_memilih: 0, waktu_memilih: null },
+  { id: 40, kode_pemilih: 'TAWANGREJO-05', wilayah_id: 8, nama_wilayah: 'TAWANGREJO, DANGKEL', nama_pemilih: 'Kuncoro', sudah_memilih: 0, waktu_memilih: null },
+  // Wilayah 9: Dusun Tegalwuni
+  { id: 41, kode_pemilih: 'TEGALWUNI-01', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Suwardi', sudah_memilih: 0, waktu_memilih: null },
+  { id: 42, kode_pemilih: 'TEGALWUNI-02', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Suparman', sudah_memilih: 0, waktu_memilih: null },
+  { id: 43, kode_pemilih: 'TEGALWUNI-03', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Suyatno', sudah_memilih: 0, waktu_memilih: null },
+  { id: 44, kode_pemilih: 'TEGALWUNI-04', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Wahyu Hidayat', sudah_memilih: 0, waktu_memilih: null },
+  { id: 45, kode_pemilih: 'TEGALWUNI-05', wilayah_id: 9, nama_wilayah: 'DUSUN TEGALWUNI', nama_pemilih: 'Purnomo', sudah_memilih: 0, waktu_memilih: null }
+];
+
+// Helper Akses Data Pemilih Terpusat (Sinkron dengan Admin)
+function getLocalPemilihList() {
+  const dataStr = localStorage.getItem('banyubiru_daftar_pemilih');
+  if (dataStr) {
+    try {
+      const parsed = JSON.parse(dataStr);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+  localStorage.setItem('banyubiru_daftar_pemilih', JSON.stringify(DEFAULT_PEMILIH));
+  return DEFAULT_PEMILIH;
+}
+
+function saveLocalPemilihList(list) {
+  localStorage.setItem('banyubiru_daftar_pemilih', JSON.stringify(list));
+}
+
 // Helper fetch dengan timeout agar TIDAK PERNAH loading lama atau macet
 async function fetchWithTimeout(url, options = {}, timeoutMs = 2000) {
   const controller = new AbortController();
@@ -121,21 +196,7 @@ function initElements() {
     successScreen: document.getElementById('successScreen'),
     votingSection: document.getElementById('votingSection'),
     successVoterWilayah: document.getElementById('successVoterWilayah'),
-    btnVoteAgain: document.getElementById('btnVoteAgain'),
-    // Komponen Transparansi & Rekapitulasi Real-Time
-    btnRefreshLiveTally: document.getElementById('btnRefreshLiveTally'),
-    liveTotalSuaraWilayah: document.getElementById('liveTotalSuaraWilayah'),
-    liveWaktuRekap: document.getElementById('liveWaktuRekap'),
-    liveHasilSuaraContainer: document.getElementById('liveHasilSuaraContainer'),
-    // Modal Rekapitulasi Publik
-    btnOpenPublicResults: document.getElementById('btnOpenPublicResults'),
-    publicResultsModal: document.getElementById('publicResultsModal'),
-    btnClosePublicResults: document.getElementById('btnClosePublicResults'),
-    btnClosePublicResultsBottom: document.getElementById('btnClosePublicResultsBottom'),
-    publicResultsWilayahSelect: document.getElementById('publicResultsWilayahSelect'),
-    publicModalTotalSuara: document.getElementById('publicModalTotalSuara'),
-    publicModalWaktu: document.getElementById('publicModalWaktu'),
-    publicModalResultsList: document.getElementById('publicModalResultsList')
+    btnVoteAgain: document.getElementById('btnVoteAgain')
   };
 
   if (dom.btnVerifyToken) {
@@ -174,36 +235,6 @@ function initElements() {
     dom.btnVoteAgain.addEventListener('click', resetVotingScreen);
   }
 
-  // Event Listener Transparansi Real-Time
-  if (dom.btnRefreshLiveTally) {
-    dom.btnRefreshLiveTally.addEventListener('click', () => {
-      loadAndRenderLiveTally(appState.selectedWilayahId, appState.lastVotedCalonId);
-    });
-  }
-
-  if (dom.btnOpenPublicResults) {
-    dom.btnOpenPublicResults.addEventListener('click', openPublicResultsModal);
-  }
-
-  if (dom.btnClosePublicResults) {
-    dom.btnClosePublicResults.addEventListener('click', closePublicResultsModal);
-  }
-
-  if (dom.btnClosePublicResultsBottom) {
-    dom.btnClosePublicResultsBottom.addEventListener('click', closePublicResultsModal);
-  }
-
-  if (dom.publicResultsModal) {
-    dom.publicResultsModal.addEventListener('click', (e) => {
-      if (e.target === dom.publicResultsModal) closePublicResultsModal();
-    });
-  }
-
-  if (dom.publicResultsWilayahSelect) {
-    dom.publicResultsWilayahSelect.addEventListener('change', (e) => {
-      loadAndRenderPublicModalTally(e.target.value);
-    });
-  }
 }
 
 // 1. Sinkronisasi data wilayah dari Server di background (senyap & non-blocking)
@@ -481,8 +512,10 @@ function handleVoteClick(calon) {
   verifyAndOpenConfirmModal(code, calon);
 }
 
-// Verifikasi Kode Pemilih
+// Verifikasi Kode Pemilih Secara Ketat (Hanya Kode Terdaftar DPT yang Boleh)
 async function verifyAndOpenConfirmModal(code, calon) {
+  const cleanCode = code.trim().toUpperCase();
+
   try {
     dom.btnVerifyToken.disabled = true;
     dom.btnVerifyToken.textContent = 'Memeriksa...';
@@ -492,51 +525,77 @@ async function verifyAndOpenConfirmModal(code, calon) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          kode_pemilih: code,
+          kode_pemilih: cleanCode,
           wilayah_id: appState.selectedWilayahId
         })
       }, 3500);
+
       const data = await res.json();
       dom.btnVerifyToken.disabled = false;
       dom.btnVerifyToken.textContent = 'Verifikasi Kode';
 
       if (!data.success) {
+        // REJECT KERAS: Kode ditolak oleh server database
         showTokenMessage(data.message, 'error');
+        appState.isCodeVerified = false;
         return;
       }
 
+      // Valid di server
       appState.isCodeVerified = true;
-      appState.voterCode = code;
-      showTokenMessage(data.message + ' (Nama: ' + (data.data.nama_pemilih || 'Warga') + ')', 'success');
+      appState.voterCode = cleanCode;
+      showTokenMessage(`✓ Kode Terdaftar: ${data.data.nama_pemilih || 'Warga'} (${data.data.wilayah_nama})`, 'success');
       openConfirmModal(calon);
       return;
     }
   } catch (err) {
-    console.warn('Verifikasi server gagal atau timeout, menggunakan mode verifikasi lokal.');
+    console.warn('Verifikasi server gagal atau offline, beralih ke verifikasi DPT lokal.');
   }
 
-  // Fallback verifikasi lokal
+  // VALIDASI KETAT MODE LOKAL / OFFLINE (Berdasarkan DPT Banyubiru)
   dom.btnVerifyToken.disabled = false;
   dom.btnVerifyToken.textContent = 'Verifikasi Kode';
 
-  const usedKey = 'voted_' + code.toUpperCase();
-  if (localStorage.getItem(usedKey)) {
-    showTokenMessage('Kode Pemilih ini SUDAH DIGUNAKAN untuk memilih sebelumnya.', 'error');
+  const dptList = getLocalPemilihList();
+  const voterRecord = dptList.find((p) => p.kode_pemilih.toUpperCase() === cleanCode);
+
+  // 1. Cek apakah kode ada di DPT
+  if (!voterRecord) {
+    showTokenMessage(`❌ Kode Pemilih "${cleanCode}" TIDAK TERDAFTAR dalam DPT resmi! Pastikan sesuai dengan kode yang diberikan panitia dusun.`, 'error');
+    appState.isCodeVerified = false;
     return;
   }
 
+  // 2. Cek apakah wilayah pemilih cocok dengan wilayah yang sedang dipilih
+  if (voterRecord.wilayah_id !== appState.selectedWilayahId) {
+    showTokenMessage(`⚠️ Kode ini terdaftar untuk wilayah "${voterRecord.nama_wilayah}", bukan untuk wilayah yang sedang dibuka saat ini!`, 'error');
+    appState.isCodeVerified = false;
+    return;
+  }
+
+  // 3. Cek apakah kode sudah pernah digunakan untuk memilih
+  const usedKey = 'voted_' + cleanCode;
+  if (voterRecord.sudah_memilih === 1 || localStorage.getItem(usedKey)) {
+    showTokenMessage(`⛔ Hak suara untuk Kode "${cleanCode}" SUDAH DIGUNAKAN sebelumnya! Setiap warga hanya dapat memilih 1 kali.`, 'error');
+    appState.isCodeVerified = false;
+    return;
+  }
+
+  // Kode Benar & Memenuhi Syarat
   appState.isCodeVerified = true;
-  appState.voterCode = code;
-  showTokenMessage('Kode Pemilih valid. Anda berhak memberikan suara.', 'success');
+  appState.voterCode = cleanCode;
+  showTokenMessage(`✓ Terverifikasi resmi: ${voterRecord.nama_pemilih} (${voterRecord.nama_wilayah}).`, 'success');
   openConfirmModal(calon);
 }
 
 async function handleVerifyCode() {
-  const code = dom.tokenInput ? dom.tokenInput.value.trim() : '';
-  if (!code) {
+  const rawCode = dom.tokenInput ? dom.tokenInput.value.trim() : '';
+  if (!rawCode) {
     showTokenMessage('Silakan ketik kode pemilih Anda.', 'error');
     return;
   }
+
+  const cleanCode = rawCode.toUpperCase();
 
   try {
     dom.btnVerifyToken.disabled = true;
@@ -547,10 +606,11 @@ async function handleVerifyCode() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          kode_pemilih: code,
+          kode_pemilih: cleanCode,
           wilayah_id: appState.selectedWilayahId
         })
       }, 3500);
+
       const data = await res.json();
       dom.btnVerifyToken.disabled = false;
       dom.btnVerifyToken.textContent = 'Verifikasi Kode';
@@ -560,25 +620,42 @@ async function handleVerifyCode() {
         appState.isCodeVerified = false;
       } else {
         appState.isCodeVerified = true;
-        appState.voterCode = code;
-        showTokenMessage(data.message + ' (Nama: ' + (data.data.nama_pemilih || 'Warga') + ')', 'success');
+        appState.voterCode = cleanCode;
+        showTokenMessage(`✓ Kode Terdaftar: ${data.data.nama_pemilih || 'Warga'} (${data.data.wilayah_nama}). Silakan tentukan calon pilihan Anda.`, 'success');
       }
       return;
     }
   } catch (err) {}
 
+  // Verifikasi ketat lokal
   dom.btnVerifyToken.disabled = false;
   dom.btnVerifyToken.textContent = 'Verifikasi Kode';
 
-  const usedKey = 'voted_' + code.toUpperCase();
-  if (localStorage.getItem(usedKey)) {
-    showTokenMessage('Kode Pemilih ini SUDAH DIGUNAKAN sebelumnya.', 'error');
+  const dptList = getLocalPemilihList();
+  const voterRecord = dptList.find((p) => p.kode_pemilih.toUpperCase() === cleanCode);
+
+  if (!voterRecord) {
+    showTokenMessage(`❌ Kode Pemilih "${cleanCode}" TIDAK TERDAFTAR dalam DPT resmi! Pastikan sesuai dengan kode yang diberikan panitia.`, 'error');
     appState.isCodeVerified = false;
-  } else {
-    appState.isCodeVerified = true;
-    appState.voterCode = code;
-    showTokenMessage('Kode Pemilih valid. Silakan tentukan pilihan calon Anda.', 'success');
+    return;
   }
+
+  if (voterRecord.wilayah_id !== appState.selectedWilayahId) {
+    showTokenMessage(`⚠️ Kode ini terdaftar untuk "${voterRecord.nama_wilayah}", bukan wilayah ini! Silakan pilih tombol wilayah yang sesuai di bagian 1.`, 'error');
+    appState.isCodeVerified = false;
+    return;
+  }
+
+  const usedKey = 'voted_' + cleanCode;
+  if (voterRecord.sudah_memilih === 1 || localStorage.getItem(usedKey)) {
+    showTokenMessage(`⛔ Hak suara untuk Kode "${cleanCode}" SUDAH DIGUNAKAN sebelumnya!`, 'error');
+    appState.isCodeVerified = false;
+    return;
+  }
+
+  appState.isCodeVerified = true;
+  appState.voterCode = cleanCode;
+  showTokenMessage(`✓ Kode Terdaftar atas nama: ${voterRecord.nama_pemilih} (${voterRecord.nama_wilayah}). Silakan klik tombol "PILIH CALON INI" di bawah.`, 'success');
 }
 
 // Buka modal konfirmasi dengan foto dan teks nama calon
@@ -605,7 +682,7 @@ function closeModal() {
   }
 }
 
-// 5. Submit Suara ke Server (Atomic Transaction / Local Storage)
+// 5. Submit Suara Resmi (Tersimpan Rahasia & Kunci Hak Suara)
 async function executeSubmitVote() {
   if (!appState.selectedCalon || !appState.voterCode || !appState.selectedWilayahId) {
     alert('Data pemilihan tidak lengkap.');
@@ -613,15 +690,27 @@ async function executeSubmitVote() {
   }
 
   const chosenCalon = appState.selectedCalon;
+  const cleanCode = appState.voterCode.toUpperCase();
   appState.lastVotedCalonId = chosenCalon.id;
 
   const payload = {
-    kode_pemilih: appState.voterCode,
+    kode_pemilih: cleanCode,
     wilayah_id: appState.selectedWilayahId,
     calon_id: chosenCalon.id
   };
 
-  // Simpan ke local tally agar hasil langsung bertambah +1 seketika
+  // 1. Kunci hak suara pemilih secara permanen di DPT lokal
+  const voters = getLocalPemilihList();
+  const voterIdx = voters.findIndex((p) => p.kode_pemilih.toUpperCase() === cleanCode);
+  const nowFormatted = new Date().toLocaleString('id-ID');
+  if (voterIdx !== -1) {
+    voters[voterIdx].sudah_memilih = 1;
+    voters[voterIdx].waktu_memilih = nowFormatted;
+    saveLocalPemilihList(voters);
+  }
+  localStorage.setItem('voted_' + cleanCode, '1');
+
+  // 2. Simpan perolehan suara calon ke rekap panitia
   const localKey = 'suara_calon_' + chosenCalon.id;
   const currVotes = parseInt(localStorage.getItem(localKey) || '0', 10);
   localStorage.setItem(localKey, (currVotes + 1).toString());
@@ -652,18 +741,18 @@ async function executeSubmitVote() {
       return;
     }
   } catch (err) {
-    console.warn('Gagal kirim ke server, menggunakan penyimpanan lokal.');
+    console.warn('Gagal kirim ke server, menggunakan penyimpanan tersinkron lokal.');
   }
 
-  // Fallback lokal
+  // Selesai penyimpanan
   dom.btnConfirmSubmitVote.disabled = false;
   dom.btnConfirmSubmitVote.textContent = 'Ya, Kirim Suara';
 
-  localStorage.setItem('voted_' + appState.voterCode.toUpperCase(), '1');
   closeModal();
-  showSuccessScreen('Terima kasih. Suara Anda berhasil dicatat secara resmi.');
+  showSuccessScreen('Terima kasih. Suara Anda berhasil dicatat secara resmi dan rahasia.');
 }
 
+// Layar Sukses Bersih & Rahasia (Tanpa Menampilkan Perolehan Suara)
 function showSuccessScreen(pesan) {
   if (dom.votingSection) dom.votingSection.style.display = 'none';
   if (dom.successScreen) dom.successScreen.classList.add('active');
@@ -671,9 +760,6 @@ function showSuccessScreen(pesan) {
   if (dom.successVoterWilayah && appState.selectedWilayahData) {
     dom.successVoterWilayah.textContent = 'Wilayah Pemilihan: ' + appState.selectedWilayahData.nama_wilayah;
   }
-
-  // Muat dan tampilkan Rekapitulasi Suara Real-Time Seketika!
-  loadAndRenderLiveTally(appState.selectedWilayahId, appState.lastVotedCalonId);
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -691,159 +777,6 @@ function resetVotingScreen() {
   if (dom.votingSection) dom.votingSection.style.display = 'block';
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// ==========================================================
-// 6. FITUR TRANSPARANSI & REKAPITULASI HASIL SUARA REAL-TIME
-// ==========================================================
-
-// Ambil & Tampilkan Rekapitulasi Hasil Suara Terbuka
-async function loadAndRenderLiveTally(wilayahId, votedCalonId) {
-  const targetId = parseInt(wilayahId, 10);
-
-  // 1. Tampilkan dulu data lokal / offline seketika (0 ms)
-  renderLocalTally(targetId, votedCalonId, dom.liveHasilSuaraContainer, dom.liveTotalSuaraWilayah, dom.liveWaktuRekap);
-
-  // 2. Jika server terhubung, ambil data resmi server
-  try {
-    const res = await fetchWithTimeout('/api/hasil-suara/' + targetId, {}, 2500);
-    if (!res.ok) return;
-    const result = await res.json();
-    if (result.success && Array.isArray(result.hasil) && result.hasil.length > 0) {
-      renderTallyItems(
-        result.hasil,
-        result.total_suara,
-        result.waktu_rekap,
-        votedCalonId,
-        dom.liveHasilSuaraContainer,
-        dom.liveTotalSuaraWilayah,
-        dom.liveWaktuRekap
-      );
-    }
-  } catch (e) {
-    // Mode offline / fallback: UI lokal sudah tampil sempurna
-  }
-}
-
-// Hitung data lokal (localStorage fallback)
-function renderLocalTally(wilayahId, votedCalonId, containerEl, totalEl, waktuEl) {
-  const candidates = LOCAL_CALON.filter((c) => c.wilayah_id === wilayahId);
-  let totalSuara = 0;
-
-  const listWithVotes = candidates.map((c) => {
-    const key = 'suara_calon_' + c.id;
-    const votes = parseInt(localStorage.getItem(key) || '0', 10);
-    totalSuara += votes;
-    return {
-      id: c.id,
-      wilayah_id: c.wilayah_id,
-      nomor_urut: c.nomor_urut,
-      nama: c.nama,
-      foto: c.foto,
-      total_suara: votes
-    };
-  });
-
-  const hasilWithPercent = listWithVotes.map((c) => {
-    const persen = totalSuara > 0 ? ((c.total_suara / totalSuara) * 100).toFixed(1) : '0.0';
-    return { ...c, persentase: persen };
-  });
-
-  const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
-  renderTallyItems(hasilWithPercent, totalSuara, nowTime, votedCalonId, containerEl, totalEl, waktuEl);
-}
-
-// Render Elemen HTML Bar Perolehan Suara
-function renderTallyItems(hasilList, totalSuara, waktuStr, votedCalonId, containerEl, totalEl, waktuEl) {
-  if (totalEl) totalEl.textContent = (totalSuara || 0).toLocaleString('id-ID') + ' Suara';
-  if (waktuEl) waktuEl.textContent = waktuStr || 'Baru Saja';
-  if (!containerEl) return;
-
-  containerEl.innerHTML = '';
-
-  hasilList.forEach((c) => {
-    const item = document.createElement('div');
-    const isVoted = votedCalonId && c.id === votedCalonId;
-    item.className = 'live-result-item' + (isVoted ? ' voted-by-user' : '');
-
-    const photoUrl = getCandidatePhotoUrl(c);
-    const voteCount = parseInt(c.total_suara || 0, 10);
-    const percentage = parseFloat(c.persentase || 0);
-
-    item.innerHTML = `
-      <div class="live-result-head">
-        <div class="live-result-candidate-info">
-          <img src="${photoUrl}" alt="${c.nama}" class="live-result-thumb" onerror="this.src='img/candidates/default.svg'">
-          <div>
-            <span class="live-result-number">No. ${c.nomor_urut}</span>
-            <span class="live-result-name">${c.nama}</span>
-            ${isVoted ? '<span class="voted-pill-badge">✨ Pilihan Anda (+1)</span>' : ''}
-          </div>
-        </div>
-        <div class="live-result-stats">
-          <span class="live-suara-count">${voteCount.toLocaleString('id-ID')} Suara</span>
-          <span class="live-suara-percent">(${percentage.toFixed(1)}%)</span>
-        </div>
-      </div>
-      <div class="live-bar-track">
-        <div class="live-bar-fill" style="width: ${Math.max(percentage, totalSuara > 0 && voteCount > 0 ? 3 : 0)}%;"></div>
-      </div>
-    `;
-
-    containerEl.appendChild(item);
-  });
-}
-
-// Modal Rekapitulasi Publik Terbuka
-function openPublicResultsModal() {
-  if (!dom.publicResultsModal) return;
-
-  // Isi dropdown wilayah jika kosong
-  if (dom.publicResultsWilayahSelect && dom.publicResultsWilayahSelect.options.length === 0) {
-    LOCAL_WILAYAH.forEach((w) => {
-      const opt = document.createElement('option');
-      opt.value = w.id;
-      opt.textContent = w.nama_wilayah;
-      dom.publicResultsWilayahSelect.appendChild(opt);
-    });
-  }
-
-  const currentWId = appState.selectedWilayahId || 1;
-  if (dom.publicResultsWilayahSelect) dom.publicResultsWilayahSelect.value = currentWId;
-
-  loadAndRenderPublicModalTally(currentWId);
-  dom.publicResultsModal.classList.add('active');
-}
-
-function closePublicResultsModal() {
-  if (dom.publicResultsModal) {
-    dom.publicResultsModal.classList.remove('active');
-  }
-}
-
-async function loadAndRenderPublicModalTally(wilayahId) {
-  const targetId = parseInt(wilayahId, 10);
-
-  // 1. Render data lokal dulu
-  renderLocalTally(targetId, null, dom.publicModalResultsList, dom.publicModalTotalSuara, dom.publicModalWaktu);
-
-  // 2. Fetch data server
-  try {
-    const res = await fetchWithTimeout('/api/hasil-suara/' + targetId, {}, 2500);
-    if (!res.ok) return;
-    const result = await res.json();
-    if (result.success && Array.isArray(result.hasil)) {
-      renderTallyItems(
-        result.hasil,
-        result.total_suara,
-        result.waktu_rekap,
-        null,
-        dom.publicModalResultsList,
-        dom.publicModalTotalSuara,
-        dom.publicModalWaktu
-      );
-    }
-  } catch (e) {}
 }
 
 // Helper Utilities

@@ -769,52 +769,56 @@ async function executeSubmitVote() {
     calon_id: chosenCalon.id
   };
 
-  // 1. Kunci hak suara pemilih secara permanen di DPT lokal
-  const voters = getLocalPemilihList();
-  const voterIdx = voters.findIndex((p) => p.kode_pemilih.toUpperCase() === cleanCode);
-  const nowFormatted = new Date().toLocaleString('id-ID');
-  if (voterIdx !== -1) {
-    voters[voterIdx].sudah_memilih = 1;
-    voters[voterIdx].waktu_memilih = nowFormatted;
-    saveLocalPemilihList(voters);
-  }
-  localStorage.setItem('voted_' + cleanCode, '1');
+  // Helper fungsi pencatatan lokal setelah konfirmasi
+  const recordLocalVote = () => {
+    const voters = getLocalPemilihList();
+    const voterIdx = voters.findIndex((p) => p.kode_pemilih.toUpperCase() === cleanCode);
+    const nowFormatted = new Date().toLocaleString('id-ID');
+    if (voterIdx !== -1) {
+      voters[voterIdx].sudah_memilih = 1;
+      voters[voterIdx].waktu_memilih = nowFormatted;
+      saveLocalPemilihList(voters);
+    }
+    localStorage.setItem('voted_' + cleanCode, '1');
 
-  // 2. Simpan perolehan suara calon ke rekap panitia
-  const localKey = 'suara_calon_' + chosenCalon.id;
-  const currVotes = parseInt(localStorage.getItem(localKey) || '0', 10);
-  localStorage.setItem(localKey, (currVotes + 1).toString());
+    const localKey = 'suara_calon_' + chosenCalon.id;
+    const currVotes = parseInt(localStorage.getItem(localKey) || '0', 10);
+    localStorage.setItem(localKey, (currVotes + 1).toString());
+  };
 
   try {
     dom.btnConfirmSubmitVote.disabled = true;
     dom.btnConfirmSubmitVote.textContent = 'Mengirim Suara...';
 
-    if (appState.isServerConnected) {
-      const res = await fetchWithTimeout('/api/vote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }, 4000);
-      const result = await res.json();
-      dom.btnConfirmSubmitVote.disabled = false;
-      dom.btnConfirmSubmitVote.textContent = 'Ya, Kirim Suara';
+    // Prioritaskan pengiriman ke server backend desa
+    const res = await fetchWithTimeout('/api/vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }, 4500);
 
-      if (!result.success) {
-        closeModal();
-        showTokenMessage(result.message, 'error');
-        alert('Gagal Mengirim Suara:\n' + result.message);
-        return;
-      }
+    const result = await res.json();
+    dom.btnConfirmSubmitVote.disabled = false;
+    dom.btnConfirmSubmitVote.textContent = 'Ya, Kirim Suara';
 
+    if (!result.success) {
       closeModal();
-      showSuccessScreen(result.message);
+      showTokenMessage(result.message, 'error');
+      alert('Gagal Mengirim Suara:\n' + result.message);
       return;
     }
+
+    // Berhasil tercatat di server: sinkronkan ke cache lokal perangkat
+    recordLocalVote();
+    closeModal();
+    showSuccessScreen(result.message);
+    return;
   } catch (err) {
-    console.warn('Gagal kirim ke server, menggunakan penyimpanan tersinkron lokal.');
+    console.warn('Jaringan server offline / lambat, beralih ke penyimpanan lokal perangkat.');
   }
 
-  // Selesai penyimpanan
+  // Fallback offline / gangguan koneksi server
+  recordLocalVote();
   dom.btnConfirmSubmitVote.disabled = false;
   dom.btnConfirmSubmitVote.textContent = 'Ya, Kirim Suara';
 

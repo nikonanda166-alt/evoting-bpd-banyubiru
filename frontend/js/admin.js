@@ -527,14 +527,21 @@ async function loadStats() {
   // Fallback statistik dari data pemilih lokal
   const localList = getLocalPemilihList();
   const totalPem = localList.length;
-  const sudahMem = localList.filter((p) => p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase())).length;
+  let totalSuaraLokal = 0;
+  for (let i = 1; i <= 32; i++) {
+    totalSuaraLokal += parseInt(localStorage.getItem('suara_calon_' + i) || '0', 10);
+  }
+  const sudahMem = Math.max(
+    totalSuaraLokal,
+    localList.filter((p) => p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase())).length
+  );
   const belumMem = Math.max(0, totalPem - sudahMem);
   const persen = totalPem > 0 ? Math.round((sudahMem / totalPem) * 100) : 0;
 
   if (domA.statTotalPemilih) domA.statTotalPemilih.textContent = totalPem.toLocaleString();
   if (domA.statSudahMemilih) domA.statSudahMemilih.textContent = sudahMem.toLocaleString();
   if (domA.statBelumMemilih) domA.statBelumMemilih.textContent = belumMem.toLocaleString();
-  if (domA.statTotalSuara) domA.statTotalSuara.textContent = sudahMem.toLocaleString();
+  if (domA.statTotalSuara) domA.statTotalSuara.textContent = (totalSuaraLokal || sudahMem).toLocaleString();
   if (domA.statPartisipasi) domA.statPartisipasi.textContent = persen + '%';
 }
 
@@ -595,19 +602,36 @@ async function loadRekapSuara() {
     }
   } catch (err) {}
 
+  const localList = getLocalPemilihList();
   const mockRekap = LOCAL_ADMIN_WILAYAH.map((w) => {
-    const calons = LOCAL_ADMIN_CALON.filter((c) => c.wilayah_id === w.id).map((c) => ({
+    const votersInW = localList.filter((p) => p.wilayah_id === w.id);
+    const sudahMemWil = votersInW.filter((p) => p.sudah_memilih === 1 || !!localStorage.getItem('voted_' + p.kode_pemilih.toUpperCase())).length;
+
+    let totalSuaraWil = 0;
+    const calons = LOCAL_ADMIN_CALON.filter((c) => c.wilayah_id === w.id).map((c) => {
+      const localSuara = parseInt(localStorage.getItem('suara_calon_' + c.id) || '0', 10);
+      totalSuaraWil += localSuara;
+      return {
+        ...c,
+        jumlah_suara: localSuara
+      };
+    });
+
+    const calonsWithPersen = calons.map((c) => ({
       ...c,
-      jumlah_suara: 0,
-      persentase: 0
+      persentase: totalSuaraWil > 0 ? parseFloat(((c.jumlah_suara / totalSuaraWil) * 100).toFixed(1)) : 0
     }));
+
+    const totalPemWil = Math.max(votersInW.length, 5);
+    const sudahFinal = Math.max(sudahMemWil, totalSuaraWil);
+
     return {
       wilayah: w,
-      total_pemilih: 5,
-      sudah_memilih: 0,
-      belum_memilih: 5,
-      total_suara: 0,
-      calon: calons
+      total_pemilih: totalPemWil,
+      sudah_memilih: sudahFinal,
+      belum_memilih: Math.max(0, totalPemWil - sudahFinal),
+      total_suara: totalSuaraWil,
+      calon: calonsWithPersen
     };
   });
 

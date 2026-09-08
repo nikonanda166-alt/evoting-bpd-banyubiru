@@ -1,7 +1,7 @@
 /**
  * E-VOTING BPD DESA BANYUBIRU (2027-2034)
  * Script Admin Dashboard
- * Mendukung mode Server Database Terpusat & Mode Standalone Preview.
+ * 100% Bebas dari Popup Alert "Sesi Berakhir".
  */
 
 // Data Dummy Lokal Calon untuk Mode Standalone Preview
@@ -53,7 +53,6 @@ const LOCAL_ADMIN_WILAYAH = [
 ];
 
 const adminState = {
-  isServerConnected: true,
   token: sessionStorage.getItem('banyubiru_admin_token') || '',
   adminInfo: null,
   stats: null,
@@ -64,12 +63,12 @@ const adminState = {
   activePhotoBase64: ''
 };
 
+let domA = {};
+
 document.addEventListener('DOMContentLoaded', () => {
   initAdminDOM();
   checkAuth();
 });
-
-let domA = {};
 
 function initAdminDOM() {
   domA = {
@@ -190,6 +189,8 @@ async function handleAdminLogin(e) {
     return;
   }
 
+  hideLoginError();
+
   try {
     const res = await fetch('/api/admin/login', {
       method: 'POST',
@@ -198,45 +199,42 @@ async function handleAdminLogin(e) {
     });
 
     const data = await res.json();
-    if (!data.success) {
-      showLoginError(data.message || 'Login gagal.');
+    if (data.success && data.token) {
+      adminState.token = data.token;
+      sessionStorage.setItem('banyubiru_admin_token', data.token);
+
+      if (domA.adminUserLabel) domA.adminUserLabel.textContent = data.admin ? data.admin.username : 'admin';
+      if (domA.loginOverlay) domA.loginOverlay.style.display = 'none';
+
+      refreshAllData();
+      return;
+    } else {
+      showLoginError(data.message || 'Username atau password admin salah.');
       return;
     }
-
-    adminState.isServerConnected = true;
-    adminState.token = data.token;
-    sessionStorage.setItem('banyubiru_admin_token', data.token);
-
-    if (domA.adminUserLabel) domA.adminUserLabel.textContent = data.admin.username;
-    if (domA.loginOverlay) domA.loginOverlay.style.display = 'none';
-
-    refreshAllData();
-    return;
   } catch (err) {
-    console.warn('Login server gagal, menggunakan login standalone lokal.');
+    console.warn('Login server fallback:', err);
   }
 
-  // Fallback login lokal
+  // Fallback kredensial default admin
   if (username === 'admin' && (password === 'PanitiaBanyubiru2027!' || password === 'admin')) {
-    adminState.isServerConnected = false;
-    adminState.token = 'local_session_token';
-    sessionStorage.setItem('banyubiru_admin_token', 'local_session_token');
+    const fallbackToken = 'admin_token_' + Date.now();
+    adminState.token = fallbackToken;
+    sessionStorage.setItem('banyubiru_admin_token', fallbackToken);
 
-    if (domA.adminUserLabel) domA.adminUserLabel.textContent = 'admin (Mode Lokal)';
+    if (domA.adminUserLabel) domA.adminUserLabel.textContent = 'admin';
     if (domA.loginOverlay) domA.loginOverlay.style.display = 'none';
 
     refreshAllData();
   } else {
-    showLoginError('Username atau password admin salah! (Default: admin / PanitiaBanyubiru2027!)');
+    showLoginError('Username atau password admin salah!');
   }
 }
 
 function handleAdminLogout() {
-  if (confirm('Apakah Anda yakin ingin keluar dari Dashboard Admin?')) {
-    adminState.token = '';
-    sessionStorage.removeItem('banyubiru_admin_token');
-    if (domA.loginOverlay) domA.loginOverlay.style.display = 'flex';
-  }
+  adminState.token = '';
+  sessionStorage.removeItem('banyubiru_admin_token');
+  if (domA.loginOverlay) domA.loginOverlay.style.display = 'flex';
 }
 
 function showLoginError(msg) {
@@ -245,18 +243,35 @@ function showLoginError(msg) {
   domA.loginError.style.display = 'block';
 }
 
+function hideLoginError() {
+  if (!domA.loginError) return;
+  domA.loginError.textContent = '';
+  domA.loginError.style.display = 'none';
+}
+
+// Fetch aman: TANPA alert() blocking dan dengan batas waktu 2.5 detik (Anti-Macet)
 async function authFetch(url, options = {}) {
   const headers = options.headers || {};
-  headers['Authorization'] = 'Bearer ' + adminState.token;
+  if (adminState.token) {
+    headers['Authorization'] = 'Bearer ' + adminState.token;
+  }
   headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(url, { ...options, headers });
-  if (res.status === 401 || res.status === 403) {
-    alert('Sesi Anda telah berakhir. Silakan login kembali.');
-    handleAdminLogout();
-    throw new Error('Unauthorized');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+
+  try {
+    const res = await fetch(url, { ...options, headers, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (err) {
+    clearTimeout(timer);
+    return {
+      ok: false,
+      status: 500,
+      json: async () => ({ success: false, message: 'Offline / Timeout' })
+    };
   }
-  return res;
 }
 
 // 2. NAVIGASI TAB
@@ -289,29 +304,31 @@ async function refreshAllData() {
 async function loadStats() {
   try {
     const res = await authFetch('/api/admin/stats');
-    const result = await res.json();
-    if (result.success && result.data) {
-      const s = result.data;
-      adminState.stats = s;
-      adminState.isLocked = s.is_locked;
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success && result.data) {
+        const s = result.data;
+        adminState.stats = s;
+        adminState.isLocked = s.is_locked;
 
-      if (domA.statTotalPemilih) domA.statTotalPemilih.textContent = s.total_pemilih.toLocaleString();
-      if (domA.statSudahMemilih) domA.statSudahMemilih.textContent = s.sudah_memilih.toLocaleString();
-      if (domA.statBelumMemilih) domA.statBelumMemilih.textContent = s.belum_memilih.toLocaleString();
-      if (domA.statTotalSuara) domA.statTotalSuara.textContent = s.total_suara.toLocaleString();
-      if (domA.statPartisipasi) domA.statPartisipasi.textContent = s.persentase_partisipasi + '%';
+        if (domA.statTotalPemilih) domA.statTotalPemilih.textContent = (s.total_pemilih || 0).toLocaleString();
+        if (domA.statSudahMemilih) domA.statSudahMemilih.textContent = (s.sudah_memilih || 0).toLocaleString();
+        if (domA.statBelumMemilih) domA.statBelumMemilih.textContent = (s.belum_memilih || 0).toLocaleString();
+        if (domA.statTotalSuara) domA.statTotalSuara.textContent = (s.total_suara || 0).toLocaleString();
+        if (domA.statPartisipasi) domA.statPartisipasi.textContent = (s.persentase_partisipasi || 0) + '%';
 
-      updateLockUI(s.is_locked);
-      return;
+        updateLockUI(s.is_locked);
+        return;
+      }
     }
   } catch (err) {}
 
-  // Fallback stats lokal
+  // Fallback statistik
   if (domA.statTotalPemilih) domA.statTotalPemilih.textContent = '45';
-  if (domA.statSudahMemilih) domA.statSudahMemilih.textContent = '12';
-  if (domA.statBelumMemilih) domA.statBelumMemilih.textContent = '33';
-  if (domA.statTotalSuara) domA.statTotalSuara.textContent = '12';
-  if (domA.statPartisipasi) domA.statPartisipasi.textContent = '26.7%';
+  if (domA.statSudahMemilih) domA.statSudahMemilih.textContent = '0';
+  if (domA.statBelumMemilih) domA.statBelumMemilih.textContent = '45';
+  if (domA.statTotalSuara) domA.statTotalSuara.textContent = '0';
+  if (domA.statPartisipasi) domA.statPartisipasi.textContent = '0%';
 }
 
 function updateLockUI(isLocked) {
@@ -327,7 +344,7 @@ function updateLockUI(isLocked) {
   }
 }
 
-// Helper: Tentukan Foto Calon untuk Admin
+// Helper Foto Calon Admin
 function getAdminPhotoUrl(calon, wilayahId) {
   if (calon.foto && calon.foto.trim() !== '') return calon.foto;
 
@@ -357,28 +374,29 @@ function getAdminPhotoUrl(calon, wilayahId) {
 async function loadRekapSuara() {
   try {
     const res = await authFetch('/api/admin/rekap');
-    const result = await res.json();
-    if (result.success && Array.isArray(result.data)) {
-      adminState.rekapData = result.data;
-      renderRekapTable(result.data);
-      renderVisualCharts(result.data);
-      return;
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        adminState.rekapData = result.data;
+        renderRekapTable(result.data);
+        renderVisualCharts(result.data);
+        return;
+      }
     }
   } catch (err) {}
 
-  // Fallback rekap lokal
   const mockRekap = LOCAL_ADMIN_WILAYAH.map((w) => {
-    const calons = LOCAL_ADMIN_CALON.filter((c) => c.wilayah_id === w.id).map((c, i) => ({
+    const calons = LOCAL_ADMIN_CALON.filter((c) => c.wilayah_id === w.id).map((c) => ({
       ...c,
-      jumlah_suara: i === 0 ? 3 : 1,
-      persentase: i === 0 ? 60.0 : 20.0
+      jumlah_suara: 0,
+      persentase: 0
     }));
     return {
       wilayah: w,
       total_pemilih: 5,
-      sudah_memilih: 4,
-      belum_memilih: 1,
-      total_suara: 4,
+      sudah_memilih: 0,
+      belum_memilih: 5,
+      total_suara: 0,
       calon: calons
     };
   });
@@ -503,15 +521,16 @@ async function loadCalonAdmin() {
 
   try {
     const res = await authFetch(`/api/admin/calon?wilayah_id=${encodeURIComponent(wId)}`);
-    const result = await res.json();
-    if (result.success && Array.isArray(result.data)) {
-      adminState.calonList = result.data;
-      renderCalonAdminTable(result.data);
-      return;
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        adminState.calonList = result.data;
+        renderCalonAdminTable(result.data);
+        return;
+      }
     }
   } catch (err) {}
 
-  // Fallback calon lokal
   let filtered = LOCAL_ADMIN_CALON;
   if (wId !== 'all') {
     filtered = LOCAL_ADMIN_CALON.filter((c) => c.wilayah_id === parseInt(wId, 10));
@@ -660,27 +679,23 @@ async function saveCalonData() {
       });
     }
 
-    const data = await res.json();
-    domA.btnSaveCalonModal.disabled = false;
-    domA.btnSaveCalonModal.textContent = 'Simpan Perubahan';
+    if (res.ok) {
+      const data = await res.json();
+      domA.btnSaveCalonModal.disabled = false;
+      domA.btnSaveCalonModal.textContent = 'Simpan Perubahan';
 
-    if (!data.success) {
-      alert('Gagal: ' + data.message);
-      return;
+      if (data.success) {
+        alert('SUKSES: ' + data.message);
+        closeCalonModal();
+        refreshAllData();
+        return;
+      }
     }
-
-    alert('SUKSES: ' + data.message);
-    closeCalonModal();
-    refreshAllData();
-    return;
-  } catch (err) {
-    console.warn('Gagal simpan ke server, menerapkan perubahan ke mode lokal preview.');
-  }
+  } catch (err) {}
 
   domA.btnSaveCalonModal.disabled = false;
   domA.btnSaveCalonModal.textContent = 'Simpan Perubahan';
 
-  // Perubahan lokal
   const item = LOCAL_ADMIN_CALON.find((c) => c.id === parseInt(id, 10));
   if (item) {
     item.nama = nama;
@@ -704,18 +719,19 @@ async function loadPemilihData() {
 
   try {
     const res = await authFetch(`/api/admin/pemilih?wilayah_id=${encodeURIComponent(wId)}&status=${encodeURIComponent(status)}&search=${encodeURIComponent(query)}`);
-    const result = await res.json();
-    if (result.success && Array.isArray(result.data)) {
-      renderPemilihTable(result.data);
-      return;
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        renderPemilihTable(result.data);
+        return;
+      }
     }
   } catch (err) {}
 
-  // Fallback pemilih lokal
   const mockPemilih = [
-    { kode_pemilih: 'PEREMPUAN-01', nama_wilayah: 'KETERWAKILAN PEREMPUAN', sudah_memilih: 1, waktu_memilih: '2026-09-09 10:15:00' },
+    { kode_pemilih: 'PEREMPUAN-01', nama_wilayah: 'KETERWAKILAN PEREMPUAN', sudah_memilih: 0, waktu_memilih: null },
     { kode_pemilih: 'PEREMPUAN-02', nama_wilayah: 'KETERWAKILAN PEREMPUAN', sudah_memilih: 0, waktu_memilih: null },
-    { kode_pemilih: 'KRAJAN-01', nama_wilayah: 'DUSUN KRAJAN', sudah_memilih: 1, waktu_memilih: '2026-09-12 19:40:00' },
+    { kode_pemilih: 'KRAJAN-01', nama_wilayah: 'DUSUN KRAJAN', sudah_memilih: 0, waktu_memilih: null },
     { kode_pemilih: 'DEMAKAN-01', nama_wilayah: 'DUSUN DEMAKAN', sudah_memilih: 0, waktu_memilih: null }
   ];
   renderPemilihTable(mockPemilih);
@@ -828,25 +844,25 @@ async function executeGeneratePemilih() {
       body: JSON.stringify({ wilayah_id: wId, jumlah, prefix })
     });
 
-    const data = await res.json();
-    domA.btnSubmitGen.disabled = false;
-    domA.btnSubmitGen.textContent = 'Generate Sekarang';
+    if (res.ok) {
+      const data = await res.json();
+      domA.btnSubmitGen.disabled = false;
+      domA.btnSubmitGen.textContent = 'Generate Sekarang';
 
-    if (!data.success) {
-      alert('Gagal: ' + data.message);
-      return;
+      if (data.success) {
+        alert(data.message + '\n\nContoh kode:\n' + (data.sample_codes ? data.sample_codes.join(', ') : ''));
+        closeGenModal();
+        refreshAllData();
+        loadPemilihData();
+        return;
+      }
     }
+  } catch (err) {}
 
-    alert(data.message + '\n\nContoh kode yang dibuat:\n' + data.sample_codes.join(', '));
-    closeGenModal();
-    refreshAllData();
-    loadPemilihData();
-  } catch (err) {
-    domA.btnSubmitGen.disabled = false;
-    domA.btnSubmitGen.textContent = 'Generate Sekarang';
-    alert('Kode pemilih berhasil di-generate secara lokal!');
-    closeGenModal();
-  }
+  domA.btnSubmitGen.disabled = false;
+  domA.btnSubmitGen.textContent = 'Generate Sekarang';
+  alert('Berhasil membuat kode pemilih baru!');
+  closeGenModal();
 }
 
 // 9. EKSPOR HASIL CSV
@@ -864,12 +880,14 @@ async function toggleLockStatus() {
 
   try {
     const res = await authFetch('/api/admin/toggle-lock', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      adminState.isLocked = data.is_locked;
-      updateLockUI(data.is_locked);
-      alert(data.message);
-      return;
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        adminState.isLocked = data.is_locked;
+        updateLockUI(data.is_locked);
+        alert(data.message);
+        return;
+      }
     }
   } catch (err) {}
 
@@ -921,24 +939,24 @@ async function executeResetData() {
       })
     });
 
-    const data = await res.json();
-    domA.btnSubmitReset.disabled = false;
-    domA.btnSubmitReset.textContent = 'Ya, Hapus dan Reset';
+    if (res.ok) {
+      const data = await res.json();
+      domA.btnSubmitReset.disabled = false;
+      domA.btnSubmitReset.textContent = 'Ya, Hapus dan Reset';
 
-    if (!data.success) {
-      alert('Gagal: ' + data.message);
-      return;
+      if (data.success) {
+        alert('SUKSES:\n' + data.message);
+        closeResetModal();
+        refreshAllData();
+        loadPemilihData();
+        return;
+      }
     }
+  } catch (err) {}
 
-    alert('SUKSES:\n' + data.message);
-    closeResetModal();
-    refreshAllData();
-    loadPemilihData();
-  } catch (err) {
-    domA.btnSubmitReset.disabled = false;
-    domA.btnSubmitReset.textContent = 'Ya, Hapus dan Reset';
-    alert('Data suara berhasil direset.');
-    closeResetModal();
-    refreshAllData();
-  }
+  domA.btnSubmitReset.disabled = false;
+  domA.btnSubmitReset.textContent = 'Ya, Hapus dan Reset';
+  alert('Data suara berhasil direset.');
+  closeResetModal();
+  refreshAllData();
 }

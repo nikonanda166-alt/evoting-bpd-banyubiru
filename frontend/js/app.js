@@ -61,12 +61,26 @@ const LOCAL_CALON = [
   { id: 32, wilayah_id: 9, nomor_urut: 3, nama: 'Margono Hadi', foto: '', visi_misi: 'Menampung serta merealisasikan aspirasi warga dengan penuh tanggung jawab.' }
 ];
 
+// Helper fetch dengan timeout agar TIDAK PERNAH loading lama atau macet
+async function fetchWithTimeout(url, options = {}, timeoutMs = 2000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
 // State Aplikasi
 const appState = {
   isServerConnected: true,
-  wilayahList: [],
-  selectedWilayahId: null,
-  selectedWilayahData: null,
+  wilayahList: LOCAL_WILAYAH,
+  selectedWilayahId: 1,
+  selectedWilayahData: LOCAL_WILAYAH[0],
   calonList: [],
   selectedCalon: null,
   voterCode: '',
@@ -75,7 +89,13 @@ const appState = {
 
 document.addEventListener('DOMContentLoaded', () => {
   initElements();
-  loadWilayahData();
+
+  // 1. TAMPILKAN LANGSUNG DALAM 0 MILIDETIK (Instant First Paint Tanpa Tunggu Server)
+  renderWilayahButtons(LOCAL_WILAYAH);
+  switchWilayah(1);
+
+  // 2. Sinkronisasi data di background secara senyap (maksimal 2 detik)
+  syncWilayahBackground();
 });
 
 let dom = {};
@@ -140,30 +160,30 @@ function initElements() {
   }
 }
 
-// 1. Ambil data 9 Wilayah dari Server (dengan fallback otomatis)
-async function loadWilayahData() {
-  renderWilayahLoading();
+// 1. Sinkronisasi data wilayah dari Server di background (senyap & non-blocking)
+async function syncWilayahBackground() {
   try {
-    const res = await fetch('/api/wilayah');
-    if (!res.ok) throw new Error('Network response not ok');
+    const res = await fetchWithTimeout('/api/wilayah', {}, 2000);
+    if (!res.ok) return;
     const result = await res.json();
 
     if (result.success && Array.isArray(result.data) && result.data.length > 0) {
       appState.isServerConnected = true;
       appState.wilayahList = result.data;
       renderWilayahButtons(result.data);
-      switchWilayah(result.data[0].id);
-      return;
+      // Update data banner wilayah aktif
+      const current = result.data.find((w) => w.id === appState.selectedWilayahId);
+      if (current) {
+        appState.selectedWilayahData = current;
+        if (dom.scheduleWilayahTitle) dom.scheduleWilayahTitle.textContent = current.nama_wilayah;
+        if (dom.scheduleWaktu) dom.scheduleWaktu.textContent = '📅 ' + current.jadwal;
+        if (dom.scheduleLokasi) dom.scheduleLokasi.textContent = '📍 ' + current.lokasi;
+      }
     }
   } catch (err) {
-    console.log('Mode lokal aktif (Server API belum terhubung atau mode file).');
+    // Mode offline / server lambat: UI sudah tampil sempurna dengan data lokal
+    appState.isServerConnected = false;
   }
-
-  // Fallback Standalone
-  appState.isServerConnected = false;
-  appState.wilayahList = LOCAL_WILAYAH;
-  renderWilayahButtons(LOCAL_WILAYAH);
-  switchWilayah(LOCAL_WILAYAH[0].id);
 }
 
 // Render tombol-tombol pemilihan wilayah
@@ -174,7 +194,7 @@ function renderWilayahButtons(wilayahList) {
   wilayahList.forEach((w) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'wilayah-btn';
+    btn.className = 'wilayah-btn' + (w.id === appState.selectedWilayahId ? ' active' : '');
     btn.id = 'btn-wilayah-' + w.id;
     btn.setAttribute('data-id', w.id);
 
@@ -197,12 +217,13 @@ function renderWilayahButtons(wilayahList) {
   });
 }
 
-// 2. Berpindah Wilayah
-async function switchWilayah(wilayahId) {
+// 2. Berpindah Wilayah (Seketika 0 ms!)
+function switchWilayah(wilayahId) {
   const targetId = parseInt(wilayahId, 10);
   appState.selectedWilayahId = targetId;
 
-  const selected = appState.wilayahList.find((w) => w.id === targetId);
+  const selected = (appState.wilayahList && appState.wilayahList.find((w) => w.id === targetId)) ||
+                   LOCAL_WILAYAH.find((w) => w.id === targetId);
   appState.selectedWilayahData = selected;
 
   const allBtns = document.querySelectorAll('.wilayah-btn');
@@ -214,37 +235,37 @@ async function switchWilayah(wilayahId) {
     }
   });
 
-  if (selected && dom.scheduleWilayahTitle) {
-    dom.scheduleWilayahTitle.textContent = selected.nama_wilayah;
-    dom.scheduleWaktu.textContent = '📅 ' + selected.jadwal;
-    dom.scheduleLokasi.textContent = '📍 ' + selected.lokasi;
+  if (selected) {
+    if (dom.scheduleWilayahTitle) dom.scheduleWilayahTitle.textContent = selected.nama_wilayah;
+    if (dom.scheduleWaktu) dom.scheduleWaktu.textContent = '📅 ' + selected.jadwal;
+    if (dom.scheduleLokasi) dom.scheduleLokasi.textContent = '📍 ' + selected.lokasi;
   }
 
-  await loadCalonByWilayah(targetId);
-}
-
-// 3. Ambil data Calon (Server API atau Fallback)
-async function loadCalonByWilayah(wilayahId) {
-  renderCalonLoading();
-
-  if (appState.isServerConnected) {
-    try {
-      const res = await fetch('/api/wilayah/' + wilayahId + '/calon');
-      const result = await res.json();
-      if (result.success && Array.isArray(result.calon)) {
-        appState.calonList = result.calon;
-        renderCalonCards(result.calon);
-        return;
-      }
-    } catch (err) {
-      console.warn('Gagal fetch calon dari server, beralih ke data lokal.');
-    }
-  }
-
-  // Fallback data lokal calon
-  const filtered = LOCAL_CALON.filter((c) => c.wilayah_id === wilayahId);
+  // 1. Tampilkan data calon lokal seketika tanpa loading spinner
+  const filtered = LOCAL_CALON.filter((c) => c.wilayah_id === targetId);
   appState.calonList = filtered;
   renderCalonCards(filtered);
+
+  // 2. Jika server terhubung, sinkronkan foto/update calon di background
+  syncCalonFromServer(targetId);
+}
+
+// Sinkronisasi Calon di background (Non-blocking)
+async function syncCalonFromServer(wilayahId) {
+  try {
+    const res = await fetchWithTimeout('/api/wilayah/' + wilayahId + '/calon', {}, 2000);
+    if (!res.ok) return;
+    const result = await res.json();
+    if (result.success && Array.isArray(result.calon) && result.calon.length > 0) {
+      // Hanya re-render jika pemilih masih di wilayah ini
+      if (appState.selectedWilayahId === wilayahId) {
+        appState.calonList = result.calon;
+        renderCalonCards(result.calon);
+      }
+    }
+  } catch (err) {
+    // Lewati jika timeout, kartu calon lokal sudah tertampil sempurna
+  }
 }
 
 // Helper: Tentukan Foto Resmi Calon
@@ -382,14 +403,14 @@ async function verifyAndOpenConfirmModal(code, calon) {
     dom.btnVerifyToken.textContent = 'Memeriksa...';
 
     if (appState.isServerConnected) {
-      const res = await fetch('/api/verify-voter', {
+      const res = await fetchWithTimeout('/api/verify-voter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kode_pemilih: code,
           wilayah_id: appState.selectedWilayahId
         })
-      });
+      }, 3500);
       const data = await res.json();
       dom.btnVerifyToken.disabled = false;
       dom.btnVerifyToken.textContent = 'Verifikasi Kode';
@@ -406,7 +427,7 @@ async function verifyAndOpenConfirmModal(code, calon) {
       return;
     }
   } catch (err) {
-    console.warn('Verifikasi server gagal, menggunakan mode verifikasi lokal.');
+    console.warn('Verifikasi server gagal atau timeout, menggunakan mode verifikasi lokal.');
   }
 
   // Fallback verifikasi lokal
@@ -437,14 +458,14 @@ async function handleVerifyCode() {
     dom.btnVerifyToken.textContent = 'Memeriksa...';
 
     if (appState.isServerConnected) {
-      const res = await fetch('/api/verify-voter', {
+      const res = await fetchWithTimeout('/api/verify-voter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kode_pemilih: code,
           wilayah_id: appState.selectedWilayahId
         })
-      });
+      }, 3500);
       const data = await res.json();
       dom.btnVerifyToken.disabled = false;
       dom.btnVerifyToken.textContent = 'Verifikasi Kode';
@@ -517,11 +538,11 @@ async function executeSubmitVote() {
     dom.btnConfirmSubmitVote.textContent = 'Mengirim Suara...';
 
     if (appState.isServerConnected) {
-      const res = await fetch('/api/vote', {
+      const res = await fetchWithTimeout('/api/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
+      }, 4000);
       const result = await res.json();
       dom.btnConfirmSubmitVote.disabled = false;
       dom.btnConfirmSubmitVote.textContent = 'Ya, Kirim Suara';

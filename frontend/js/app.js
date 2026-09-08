@@ -83,6 +83,7 @@ const appState = {
   selectedWilayahData: LOCAL_WILAYAH[0],
   calonList: [],
   selectedCalon: null,
+  lastVotedCalonId: null,
   voterCode: '',
   isCodeVerified: false
 };
@@ -120,7 +121,21 @@ function initElements() {
     successScreen: document.getElementById('successScreen'),
     votingSection: document.getElementById('votingSection'),
     successVoterWilayah: document.getElementById('successVoterWilayah'),
-    btnVoteAgain: document.getElementById('btnVoteAgain')
+    btnVoteAgain: document.getElementById('btnVoteAgain'),
+    // Komponen Transparansi & Rekapitulasi Real-Time
+    btnRefreshLiveTally: document.getElementById('btnRefreshLiveTally'),
+    liveTotalSuaraWilayah: document.getElementById('liveTotalSuaraWilayah'),
+    liveWaktuRekap: document.getElementById('liveWaktuRekap'),
+    liveHasilSuaraContainer: document.getElementById('liveHasilSuaraContainer'),
+    // Modal Rekapitulasi Publik
+    btnOpenPublicResults: document.getElementById('btnOpenPublicResults'),
+    publicResultsModal: document.getElementById('publicResultsModal'),
+    btnClosePublicResults: document.getElementById('btnClosePublicResults'),
+    btnClosePublicResultsBottom: document.getElementById('btnClosePublicResultsBottom'),
+    publicResultsWilayahSelect: document.getElementById('publicResultsWilayahSelect'),
+    publicModalTotalSuara: document.getElementById('publicModalTotalSuara'),
+    publicModalWaktu: document.getElementById('publicModalWaktu'),
+    publicModalResultsList: document.getElementById('publicModalResultsList')
   };
 
   if (dom.btnVerifyToken) {
@@ -157,6 +172,37 @@ function initElements() {
 
   if (dom.btnVoteAgain) {
     dom.btnVoteAgain.addEventListener('click', resetVotingScreen);
+  }
+
+  // Event Listener Transparansi Real-Time
+  if (dom.btnRefreshLiveTally) {
+    dom.btnRefreshLiveTally.addEventListener('click', () => {
+      loadAndRenderLiveTally(appState.selectedWilayahId, appState.lastVotedCalonId);
+    });
+  }
+
+  if (dom.btnOpenPublicResults) {
+    dom.btnOpenPublicResults.addEventListener('click', openPublicResultsModal);
+  }
+
+  if (dom.btnClosePublicResults) {
+    dom.btnClosePublicResults.addEventListener('click', closePublicResultsModal);
+  }
+
+  if (dom.btnClosePublicResultsBottom) {
+    dom.btnClosePublicResultsBottom.addEventListener('click', closePublicResultsModal);
+  }
+
+  if (dom.publicResultsModal) {
+    dom.publicResultsModal.addEventListener('click', (e) => {
+      if (e.target === dom.publicResultsModal) closePublicResultsModal();
+    });
+  }
+
+  if (dom.publicResultsWilayahSelect) {
+    dom.publicResultsWilayahSelect.addEventListener('change', (e) => {
+      loadAndRenderPublicModalTally(e.target.value);
+    });
   }
 }
 
@@ -527,11 +573,19 @@ async function executeSubmitVote() {
     return;
   }
 
+  const chosenCalon = appState.selectedCalon;
+  appState.lastVotedCalonId = chosenCalon.id;
+
   const payload = {
     kode_pemilih: appState.voterCode,
     wilayah_id: appState.selectedWilayahId,
-    calon_id: appState.selectedCalon.id
+    calon_id: chosenCalon.id
   };
+
+  // Simpan ke local tally agar hasil langsung bertambah +1 seketika
+  const localKey = 'suara_calon_' + chosenCalon.id;
+  const currVotes = parseInt(localStorage.getItem(localKey) || '0', 10);
+  localStorage.setItem(localKey, (currVotes + 1).toString());
 
   try {
     dom.btnConfirmSubmitVote.disabled = true;
@@ -576,8 +630,11 @@ function showSuccessScreen(pesan) {
   if (dom.successScreen) dom.successScreen.classList.add('active');
 
   if (dom.successVoterWilayah && appState.selectedWilayahData) {
-    dom.successVoterWilayah.textContent = 'Suara Anda untuk pemilihan BPD ' + appState.selectedWilayahData.nama_wilayah + ' telah berhasil dicatat.';
+    dom.successVoterWilayah.textContent = 'Wilayah Pemilihan: ' + appState.selectedWilayahData.nama_wilayah;
   }
+
+  // Muat dan tampilkan Rekapitulasi Suara Real-Time Seketika!
+  loadAndRenderLiveTally(appState.selectedWilayahId, appState.lastVotedCalonId);
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -587,6 +644,7 @@ function resetVotingScreen() {
   appState.voterCode = '';
   appState.isCodeVerified = false;
   appState.selectedCalon = null;
+  appState.lastVotedCalonId = null;
 
   hideTokenMessage();
 
@@ -594,6 +652,159 @@ function resetVotingScreen() {
   if (dom.votingSection) dom.votingSection.style.display = 'block';
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ==========================================================
+// 6. FITUR TRANSPARANSI & REKAPITULASI HASIL SUARA REAL-TIME
+// ==========================================================
+
+// Ambil & Tampilkan Rekapitulasi Hasil Suara Terbuka
+async function loadAndRenderLiveTally(wilayahId, votedCalonId) {
+  const targetId = parseInt(wilayahId, 10);
+
+  // 1. Tampilkan dulu data lokal / offline seketika (0 ms)
+  renderLocalTally(targetId, votedCalonId, dom.liveHasilSuaraContainer, dom.liveTotalSuaraWilayah, dom.liveWaktuRekap);
+
+  // 2. Jika server terhubung, ambil data resmi server
+  try {
+    const res = await fetchWithTimeout('/api/hasil-suara/' + targetId, {}, 2500);
+    if (!res.ok) return;
+    const result = await res.json();
+    if (result.success && Array.isArray(result.hasil) && result.hasil.length > 0) {
+      renderTallyItems(
+        result.hasil,
+        result.total_suara,
+        result.waktu_rekap,
+        votedCalonId,
+        dom.liveHasilSuaraContainer,
+        dom.liveTotalSuaraWilayah,
+        dom.liveWaktuRekap
+      );
+    }
+  } catch (e) {
+    // Mode offline / fallback: UI lokal sudah tampil sempurna
+  }
+}
+
+// Hitung data lokal (localStorage fallback)
+function renderLocalTally(wilayahId, votedCalonId, containerEl, totalEl, waktuEl) {
+  const candidates = LOCAL_CALON.filter((c) => c.wilayah_id === wilayahId);
+  let totalSuara = 0;
+
+  const listWithVotes = candidates.map((c) => {
+    const key = 'suara_calon_' + c.id;
+    const votes = parseInt(localStorage.getItem(key) || '0', 10);
+    totalSuara += votes;
+    return {
+      id: c.id,
+      wilayah_id: c.wilayah_id,
+      nomor_urut: c.nomor_urut,
+      nama: c.nama,
+      foto: c.foto,
+      total_suara: votes
+    };
+  });
+
+  const hasilWithPercent = listWithVotes.map((c) => {
+    const persen = totalSuara > 0 ? ((c.total_suara / totalSuara) * 100).toFixed(1) : '0.0';
+    return { ...c, persentase: persen };
+  });
+
+  const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
+  renderTallyItems(hasilWithPercent, totalSuara, nowTime, votedCalonId, containerEl, totalEl, waktuEl);
+}
+
+// Render Elemen HTML Bar Perolehan Suara
+function renderTallyItems(hasilList, totalSuara, waktuStr, votedCalonId, containerEl, totalEl, waktuEl) {
+  if (totalEl) totalEl.textContent = (totalSuara || 0).toLocaleString('id-ID') + ' Suara';
+  if (waktuEl) waktuEl.textContent = waktuStr || 'Baru Saja';
+  if (!containerEl) return;
+
+  containerEl.innerHTML = '';
+
+  hasilList.forEach((c) => {
+    const item = document.createElement('div');
+    const isVoted = votedCalonId && c.id === votedCalonId;
+    item.className = 'live-result-item' + (isVoted ? ' voted-by-user' : '');
+
+    const photoUrl = getCandidatePhotoUrl(c);
+    const voteCount = parseInt(c.total_suara || 0, 10);
+    const percentage = parseFloat(c.persentase || 0);
+
+    item.innerHTML = `
+      <div class="live-result-head">
+        <div class="live-result-candidate-info">
+          <img src="${photoUrl}" alt="${c.nama}" class="live-result-thumb" onerror="this.src='img/candidates/default.svg'">
+          <div>
+            <span class="live-result-number">No. ${c.nomor_urut}</span>
+            <span class="live-result-name">${c.nama}</span>
+            ${isVoted ? '<span class="voted-pill-badge">✨ Pilihan Anda (+1)</span>' : ''}
+          </div>
+        </div>
+        <div class="live-result-stats">
+          <span class="live-suara-count">${voteCount.toLocaleString('id-ID')} Suara</span>
+          <span class="live-suara-percent">(${percentage.toFixed(1)}%)</span>
+        </div>
+      </div>
+      <div class="live-bar-track">
+        <div class="live-bar-fill" style="width: ${Math.max(percentage, totalSuara > 0 && voteCount > 0 ? 3 : 0)}%;"></div>
+      </div>
+    `;
+
+    containerEl.appendChild(item);
+  });
+}
+
+// Modal Rekapitulasi Publik Terbuka
+function openPublicResultsModal() {
+  if (!dom.publicResultsModal) return;
+
+  // Isi dropdown wilayah jika kosong
+  if (dom.publicResultsWilayahSelect && dom.publicResultsWilayahSelect.options.length === 0) {
+    LOCAL_WILAYAH.forEach((w) => {
+      const opt = document.createElement('option');
+      opt.value = w.id;
+      opt.textContent = w.nama_wilayah;
+      dom.publicResultsWilayahSelect.appendChild(opt);
+    });
+  }
+
+  const currentWId = appState.selectedWilayahId || 1;
+  if (dom.publicResultsWilayahSelect) dom.publicResultsWilayahSelect.value = currentWId;
+
+  loadAndRenderPublicModalTally(currentWId);
+  dom.publicResultsModal.classList.add('active');
+}
+
+function closePublicResultsModal() {
+  if (dom.publicResultsModal) {
+    dom.publicResultsModal.classList.remove('active');
+  }
+}
+
+async function loadAndRenderPublicModalTally(wilayahId) {
+  const targetId = parseInt(wilayahId, 10);
+
+  // 1. Render data lokal dulu
+  renderLocalTally(targetId, null, dom.publicModalResultsList, dom.publicModalTotalSuara, dom.publicModalWaktu);
+
+  // 2. Fetch data server
+  try {
+    const res = await fetchWithTimeout('/api/hasil-suara/' + targetId, {}, 2500);
+    if (!res.ok) return;
+    const result = await res.json();
+    if (result.success && Array.isArray(result.hasil)) {
+      renderTallyItems(
+        result.hasil,
+        result.total_suara,
+        result.waktu_rekap,
+        null,
+        dom.publicModalResultsList,
+        dom.publicModalTotalSuara,
+        dom.publicModalWaktu
+      );
+    }
+  } catch (e) {}
 }
 
 // Helper Utilities

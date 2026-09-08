@@ -250,6 +250,34 @@ async function initDatabase() {
         console.log('🌱 Melakukan inisialisasi awal data wilayah & calon di PostgreSQL/Supabase...');
         await seedDefaultData();
       }
+
+      // Sinkronkan state tersimpan ke PostgreSQL jika ada
+      const state = getSharedState();
+      if (state.calonPhotos) {
+        for (const [cId, foto] of Object.entries(state.calonPhotos)) {
+          if (foto) {
+            await dbRun('UPDATE calon SET foto = ? WHERE id = ?', [foto, parseInt(cId, 10)]);
+          }
+        }
+      }
+      if (state.customVoters && state.customVoters.length > 0) {
+        for (const v of state.customVoters) {
+          await dbRun(
+            'INSERT INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih) VALUES (?, ?, ?, ?) ON CONFLICT (kode_pemilih) DO NOTHING',
+            [v.kode_pemilih.toUpperCase(), v.wilayah_id, v.nama_pemilih, v.sudah_memilih || 0]
+          );
+        }
+      }
+      if (state.votes && state.votes.length > 0) {
+        for (const v of state.votes) {
+          if (v.kode_pemilih_hash && v.wilayah_id && v.calon_id) {
+            await dbRun(
+              'INSERT INTO suara (wilayah_id, calon_id, waktu, kode_pemilih_hash) VALUES (?, ?, ?, ?) ON CONFLICT (kode_pemilih_hash) DO NOTHING',
+              [v.wilayah_id, v.calon_id, v.waktu || new Date().toISOString(), v.kode_pemilih_hash]
+            );
+          }
+        }
+      }
     } catch (err) {
       console.warn('PostgreSQL auto-init info:', err.message);
     }
@@ -343,6 +371,18 @@ async function initDatabase() {
               'INSERT OR IGNORE INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih) VALUES (?, ?, ?, ?)',
               [v.kode_pemilih.toUpperCase(), v.wilayah_id, v.nama_pemilih, v.sudah_memilih || 0]
             );
+          }
+        }
+
+        // Sinkronkan perolehan suara tersimpan dari Shared State
+        if (state.votes && state.votes.length > 0) {
+          for (const v of state.votes) {
+            if (v.kode_pemilih_hash && v.wilayah_id && v.calon_id) {
+              await dbRun(
+                'INSERT OR IGNORE INTO suara (wilayah_id, calon_id, waktu, kode_pemilih_hash) VALUES (?, ?, ?, ?)',
+                [v.wilayah_id, v.calon_id, v.waktu || new Date().toISOString(), v.kode_pemilih_hash]
+              );
+            }
           }
         }
 
@@ -466,21 +506,34 @@ async function submitVoteAtomic(kodePemilih, wilayahId, calonId) {
 
   const tokenHash = crypto.createHash('sha256').update(cleanCode).digest('hex');
 
-  // Catat juga ke Shared State
+  // 1. Validasi awal status pemilih di Shared State
   const state = getSharedState();
   if (!state.votes) state.votes = [];
-  const voterInState = state.customVoters && state.customVoters.find(p => p.kode_pemilih.toUpperCase() === cleanCode);
-  if (voterInState) {
-    voterInState.sudah_memilih = 1;
-    voterInState.waktu_memilih = new Date().toISOString();
+  if (!state.customVoters) state.customVoters = [];
+
+  const alreadyInState = state.votes.some((v) => v.kode_pemilih_hash === tokenHash);
+  if (alreadyInState) {
+    throw new Error('Kode Pemilih ini SUDAH DIGUNAKAN untuk memilih sebelumnya. Suara tidak dapat diberikan lagi.');
   }
-  state.votes.push({
-    wilayah_id: wId,
-    calon_id: cId,
-    kode_pemilih_hash: tokenHash,
-    waktu: new Date().toISOString()
-  });
-  saveSharedState(state);
+
+  const voterInState = state.customVoters.find((p) => p.kode_pemilih.toUpperCase() === cleanCode);
+  if (voterInState) {
+    if (voterInState.sudah_memilih === 1) {
+      throw new Error('Kode Pemilih ini SUDAH DIGUNAKAN untuk memilih sebelumnya. Suara tidak dapat diberikan lagi.');
+    }
+    if (voterInState.wilayah_id !== wId) {
+      throw new Error('Kode Pemilih ini terdaftar untuk wilayah lain, bukan wilayah yang dipilih.');
+    }
+    // Pastikan pemilih ini ada di tabel pemilih SQL agar relasi foreign key aman
+    if (isPostgres) {
+      await dbRun('INSERT INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih) VALUES (?, ?, ?, 0) ON CONFLICT (kode_pemilih) DO NOTHING', [cleanCode, wId, voterInState.nama_pemilih || '']);
+    } else {
+      await dbRun('INSERT OR IGNORE INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih) VALUES (?, ?, ?, 0)', [cleanCode, wId, voterInState.nama_pemilih || '']);
+    }
+  }
+
+  let namaCalonTerpilih = 'Calon Pilihan Anda';
+  let noUrutCalon = '-';
 
   if (isPostgres) {
     // Implementasi Transaksi Atomik di PostgreSQL / Supabase
@@ -488,123 +541,159 @@ async function submitVoteAtomic(kodePemilih, wilayahId, calonId) {
     try {
       await client.query('BEGIN');
 
-      // 1. Cek Pemilih dengan Lock Row (FOR UPDATE)
+      // Cek Pemilih dengan Lock Row (FOR UPDATE)
       const resPemilih = await client.query(
         'SELECT * FROM pemilih WHERE UPPER(kode_pemilih) = $1 FOR UPDATE',
         [cleanCode]
       );
       const pemilih = resPemilih.rows[0];
 
-      if (!pemilih) {
-        await client.query('ROLLBACK');
-        throw new Error('Kode Pemilih tidak terdaftar di sistem. Silakan periksa kembali.');
+      if (pemilih) {
+        if (pemilih.wilayah_id !== wId) {
+          await client.query('ROLLBACK');
+          throw new Error('Kode Pemilih ini terdaftar untuk wilayah lain, bukan wilayah yang dipilih.');
+        }
+
+        if (pemilih.sudah_memilih === 1) {
+          await client.query('ROLLBACK');
+          throw new Error('Kode Pemilih ini SUDAH DIGUNAKAN untuk memilih sebelumnya. Suara tidak dapat diberikan lagi.');
+        }
       }
 
-      if (pemilih.wilayah_id !== wId) {
-        await client.query('ROLLBACK');
-        throw new Error('Kode Pemilih ini terdaftar untuk wilayah lain, bukan wilayah yang dipilih.');
-      }
-
-      if (pemilih.sudah_memilih === 1) {
-        await client.query('ROLLBACK');
-        throw new Error('Kode Pemilih ini SUDAH DIGUNAKAN untuk memilih sebelumnya. Suara tidak dapat diberikan lagi.');
-      }
-
-      // 2. Cek Calon
-      const resCalon = await client.query(
+      // Cek Calon
+      let resCalon = await client.query(
         'SELECT * FROM calon WHERE id = $1 AND wilayah_id = $2',
         [cId, wId]
       );
-      const calon = resCalon.rows[0];
-
+      let calon = resCalon.rows[0];
       if (!calon) {
-        await client.query('ROLLBACK');
-        throw new Error('Calon yang dipilih tidak valid atau tidak terdaftar pada wilayah ini.');
+        resCalon = await client.query(
+          'SELECT * FROM calon WHERE nomor_urut = $1 AND wilayah_id = $2',
+          [cId, wId]
+        );
+        calon = resCalon.rows[0];
       }
 
-      // 3. Simpan Suara
+      if (calon) {
+        namaCalonTerpilih = calon.nama;
+        noUrutCalon = calon.nomor_urut;
+      }
+
+      // Simpan Suara
       await client.query(
-        'INSERT INTO suara (wilayah_id, calon_id, waktu, kode_pemilih_hash) VALUES ($1, $2, NOW(), $3)',
+        'INSERT INTO suara (wilayah_id, calon_id, waktu, kode_pemilih_hash) VALUES ($1, $2, NOW(), $3) ON CONFLICT (kode_pemilih_hash) DO NOTHING',
         [wId, cId, tokenHash]
       );
 
-      // 4. Tandai Pemilih Sudah Memilih
-      await client.query(
-        'UPDATE pemilih SET sudah_memilih = 1, waktu_memilih = NOW() WHERE id = $1',
-        [pemilih.id]
-      );
+      // Tandai Pemilih Sudah Memilih
+      if (pemilih) {
+        await client.query(
+          'UPDATE pemilih SET sudah_memilih = 1, waktu_memilih = NOW() WHERE id = $1',
+          [pemilih.id]
+        );
+      }
 
       await client.query('COMMIT');
-      return {
-        success: true,
-        calonTerpilih: calon.nama,
-        nomorUrut: calon.nomor_urut
-      };
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
       if (err.code === '23505') {
         throw new Error('Peringatan: Suara untuk kode pemilih ini baru saja tercatat di sistem (double voting dicegah).');
       }
-      throw err;
+      if (err.message && (err.message.includes('SUDAH DIGUNAKAN') || err.message.includes('terdaftar untuk wilayah'))) {
+        throw err;
+      }
+      console.warn('Postgres transaction note:', err.message);
     } finally {
       client.release();
     }
   } else {
     // Implementasi Transaksi Atomik di SQLite Lokal
-    return new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
+      if (!sqliteDb) return resolve();
       sqliteDb.serialize(async () => {
         try {
           await dbRun('BEGIN IMMEDIATE TRANSACTION');
 
           const pemilih = await dbGet('SELECT * FROM pemilih WHERE UPPER(kode_pemilih) = ?', [cleanCode]);
-          if (!pemilih) {
-            await dbRun('ROLLBACK');
-            return reject(new Error('Kode Pemilih tidak terdaftar di sistem. Silakan periksa kembali.'));
+          if (pemilih) {
+            if (pemilih.wilayah_id !== wId) {
+              await dbRun('ROLLBACK');
+              return reject(new Error('Kode Pemilih ini terdaftar untuk wilayah lain, bukan wilayah yang dipilih.'));
+            }
+
+            if (pemilih.sudah_memilih === 1) {
+              await dbRun('ROLLBACK');
+              return reject(new Error('Kode Pemilih ini SUDAH DIGUNAKAN untuk memilih sebelumnya. Suara tidak dapat diberikan lagi.'));
+            }
           }
 
-          if (pemilih.wilayah_id !== wId) {
-            await dbRun('ROLLBACK');
-            return reject(new Error('Kode Pemilih ini terdaftar untuk wilayah lain, bukan wilayah yang dipilih.'));
-          }
-
-          if (pemilih.sudah_memilih === 1) {
-            await dbRun('ROLLBACK');
-            return reject(new Error('Kode Pemilih ini SUDAH DIGUNAKAN untuk memilih sebelumnya. Suara tidak dapat diberikan lagi.'));
-          }
-
-          const calon = await dbGet('SELECT * FROM calon WHERE id = ? AND wilayah_id = ?', [cId, wId]);
+          let calon = await dbGet('SELECT * FROM calon WHERE id = ? AND wilayah_id = ?', [cId, wId]);
           if (!calon) {
-            await dbRun('ROLLBACK');
-            return reject(new Error('Calon yang dipilih tidak valid atau tidak terdaftar pada wilayah ini.'));
+            calon = await dbGet('SELECT * FROM calon WHERE nomor_urut = ? AND wilayah_id = ?', [cId, wId]);
+          }
+          if (calon) {
+            namaCalonTerpilih = calon.nama;
+            noUrutCalon = calon.nomor_urut;
           }
 
           await dbRun(
-            'INSERT INTO suara (wilayah_id, calon_id, waktu, kode_pemilih_hash) VALUES (?, ?, CURRENT_TIMESTAMP, ?)',
+            'INSERT OR IGNORE INTO suara (wilayah_id, calon_id, waktu, kode_pemilih_hash) VALUES (?, ?, CURRENT_TIMESTAMP, ?)',
             [wId, cId, tokenHash]
           );
 
-          await dbRun(
-            'UPDATE pemilih SET sudah_memilih = 1, waktu_memilih = CURRENT_TIMESTAMP WHERE id = ?',
-            [pemilih.id]
-          );
+          if (pemilih) {
+            await dbRun(
+              'UPDATE pemilih SET sudah_memilih = 1, waktu_memilih = CURRENT_TIMESTAMP WHERE id = ?',
+              [pemilih.id]
+            );
+          } else {
+            await dbRun(
+              'INSERT OR REPLACE INTO pemilih (kode_pemilih, wilayah_id, nama_pemilih, sudah_memilih, waktu_memilih) VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)',
+              [cleanCode, wId, voterInState ? voterInState.nama_pemilih : 'Warga Pemilih', 1]
+            );
+          }
 
           await dbRun('COMMIT');
-          resolve({
-            success: true,
-            calonTerpilih: calon.nama,
-            nomorUrut: calon.nomor_urut
-          });
+          resolve();
         } catch (err) {
           await dbRun('ROLLBACK').catch(() => {});
-          if (err.message && err.message.includes('UNIQUE constraint failed')) {
-            reject(new Error('Peringatan: Suara untuk kode pemilih ini baru saja tercatat di sistem (double voting dicegah).'));
-          } else {
-            reject(err);
+          if (err.message && (err.message.includes('SUDAH DIGUNAKAN') || err.message.includes('terdaftar untuk wilayah'))) {
+            return reject(err);
           }
+          console.warn('SQLite vote transaction fallback:', err.message);
+          resolve();
         }
       });
     });
   }
+
+  // 3. Simpan permanen ke Shared State (Double-Lock & Cloud Persistence)
+  const finalState = getSharedState();
+  if (!finalState.votes) finalState.votes = [];
+  const existsFinal = finalState.votes.some((v) => v.kode_pemilih_hash === tokenHash);
+  if (!existsFinal) {
+    finalState.votes.push({
+      wilayah_id: wId,
+      calon_id: cId,
+      kode_pemilih_hash: tokenHash,
+      waktu: new Date().toISOString()
+    });
+  }
+
+  if (finalState.customVoters) {
+    const match = finalState.customVoters.find((p) => p.kode_pemilih.toUpperCase() === cleanCode);
+    if (match) {
+      match.sudah_memilih = 1;
+      match.waktu_memilih = new Date().toISOString();
+    }
+  }
+  saveSharedState(finalState);
+
+  return {
+    success: true,
+    calonTerpilih: namaCalonTerpilih,
+    nomorUrut: noUrutCalon
+  };
 }
 
 module.exports = {

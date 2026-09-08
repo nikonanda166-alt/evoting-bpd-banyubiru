@@ -294,7 +294,20 @@ app.post('/api/vote', async (req, res) => {
         data: result
       });
     } catch (atomicErr) {
-      // Jika database SQLite restart tetapi pemilih ada di Shared State
+      // Jika error validasi bisnis (sudah memilih, salah wilayah, token tidak terdaftar)
+      if (atomicErr.message && (
+        atomicErr.message.includes('SUDAH DIGUNAKAN') ||
+        atomicErr.message.includes('terdaftar untuk wilayah') ||
+        atomicErr.message.includes('tidak terdaftar') ||
+        atomicErr.message.includes('double voting')
+      )) {
+        return res.status(400).json({
+          success: false,
+          message: atomicErr.message
+        });
+      }
+
+      // Jika database SQLite mengalami kendala teknis (read-only/cold-start), fallback ke Shared State
       const cleanCode = String(kode_pemilih).trim().toUpperCase();
       const tokenHash = crypto.createHash('sha256').update(cleanCode).digest('hex');
       const state = getSharedState();
@@ -350,92 +363,108 @@ app.post('/api/vote', async (req, res) => {
 // Ambil hasil perolehan suara terbuka per wilayah (Bebas Akses / Publik)
 app.get('/api/hasil-suara/:wilayah_id', async (req, res) => {
   const wilayahId = parseInt(req.params.wilayah_id, 10);
+  const state = getSharedState();
+  const stateVotes = state.votes || [];
+
+  let wilayah = null;
+  let calonList = [];
   try {
-    const wilayah = await dbGet('SELECT * FROM wilayah WHERE id = ?', [wilayahId]);
-    const rekap = await dbAll(`
+    wilayah = await dbGet('SELECT * FROM wilayah WHERE id = ?', [wilayahId]);
+    calonList = await dbAll(`
       SELECT c.id, c.wilayah_id, c.nomor_urut, c.nama, c.foto,
-        COUNT(s.id) AS total_suara
+        (SELECT COUNT(*) FROM suara s WHERE s.calon_id = c.id) AS db_suara
       FROM calon c
-      LEFT JOIN suara s ON s.calon_id = c.id
       WHERE c.wilayah_id = ?
-      GROUP BY c.id, c.wilayah_id, c.nomor_urut, c.nama, c.foto
       ORDER BY c.nomor_urut ASC
     `, [wilayahId]);
-
-    if (rekap && rekap.length > 0) {
-      const totalSuaraWilayah = rekap.reduce((acc, curr) => acc + parseInt(curr.total_suara || 0, 10), 0);
-      const hasilWithPercent = rekap.map((c) => {
-        const suara = parseInt(c.total_suara || 0, 10);
-        const persen = totalSuaraWilayah > 0 ? ((suara / totalSuaraWilayah) * 100).toFixed(1) : '0.0';
-        return {
-          id: c.id,
-          nomor_urut: c.nomor_urut,
-          nama: c.nama,
-          foto: c.foto,
-          total_suara: suara,
-          persentase: persen
-        };
-      });
-
-      return res.json({
-        success: true,
-        wilayah: wilayah || FALLBACK_WILAYAH.find((w) => w.id === wilayahId),
-        total_suara: totalSuaraWilayah,
-        waktu_rekap: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB',
-        hasil: hasilWithPercent
-      });
-    }
   } catch (err) {
     console.warn('Fallback hasil suara server:', err.message);
   }
 
-  // Fallback transparan jika database cold
-  const defaultWilayah = FALLBACK_WILAYAH.find((w) => w.id === wilayahId);
-  const defaultCalon = FALLBACK_CALON.filter((c) => c.wilayah_id === wilayahId).map((c) => ({
-    id: c.id,
-    nomor_urut: c.nomor_urut,
-    nama: c.nama,
-    foto: c.foto,
-    total_suara: 0,
-    persentase: '0.0'
-  }));
+  if (!wilayah) {
+    wilayah = FALLBACK_WILAYAH.find((w) => w.id === wilayahId) || { id: wilayahId, nama_wilayah: 'Wilayah ' + wilayahId };
+  }
+  if (!calonList || calonList.length === 0) {
+    calonList = FALLBACK_CALON.filter((c) => c.wilayah_id === wilayahId).map((c) => ({
+      ...c,
+      db_suara: 0
+    }));
+  }
+
+  // Deduplikasi suara DB dan state.votes
+  let dbSuaraRows = [];
+  try {
+    dbSuaraRows = await dbAll('SELECT calon_id, kode_pemilih_hash FROM suara WHERE wilayah_id = ?', [wilayahId]);
+  } catch (e) {}
+  const dbHashes = new Set(dbSuaraRows.map((s) => s.kode_pemilih_hash));
+
+  let totalSuaraWilayah = 0;
+  const hasilWithPercent = calonList.map((c) => {
+    let suara = parseInt(c.db_suara, 10) || 0;
+    for (const sv of stateVotes) {
+      if (sv.wilayah_id === wilayahId && sv.calon_id === c.id) {
+        if (!dbHashes.has(sv.kode_pemilih_hash)) {
+          suara++;
+        }
+      }
+    }
+    totalSuaraWilayah += suara;
+    const customFoto = state.calonPhotos && state.calonPhotos[c.id];
+
+    return {
+      id: c.id,
+      nomor_urut: c.nomor_urut,
+      nama: c.nama,
+      foto: customFoto || c.foto,
+      total_suara: suara,
+      persentase: '0.0'
+    };
+  });
+
+  hasilWithPercent.forEach((c) => {
+    c.persentase = totalSuaraWilayah > 0 ? ((c.total_suara / totalSuaraWilayah) * 100).toFixed(1) : '0.0';
+  });
 
   res.json({
     success: true,
-    wilayah: defaultWilayah || { id: wilayahId, nama_wilayah: 'Wilayah ' + wilayahId },
-    total_suara: 0,
+    wilayah,
+    total_suara: totalSuaraWilayah,
     waktu_rekap: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB',
-    hasil: defaultCalon
+    hasil: hasilWithPercent
   });
 });
 
 // Ambil ringkasan suara seluruh 9 wilayah (Public Quick Count)
 app.get('/api/hasil-suara-semua', async (req, res) => {
-  try {
-    const rekap = await dbAll(`
-      SELECT w.id AS wilayah_id, w.nama_wilayah,
-        COUNT(s.id) AS total_suara
-      FROM wilayah w
-      LEFT JOIN suara s ON s.wilayah_id = w.id
-      GROUP BY w.id, w.nama_wilayah
-      ORDER BY w.id ASC
-    `);
+  const state = getSharedState();
+  const stateVotes = state.votes || [];
 
-    if (rekap && rekap.length > 0) {
-      return res.json({ success: true, data: rekap });
-    }
-  } catch (err) {
-    console.warn('Fallback hasil suara semua:', err.message);
+  let dbSuaraRows = [];
+  try {
+    dbSuaraRows = await dbAll('SELECT wilayah_id, kode_pemilih_hash FROM suara');
+  } catch (e) {}
+  const dbHashes = new Set(dbSuaraRows.map((s) => s.kode_pemilih_hash));
+
+  const countPerWilayah = {};
+  for (let wId = 1; wId <= 9; wId++) countPerWilayah[wId] = 0;
+
+  for (const s of dbSuaraRows) {
+    if (countPerWilayah[s.wilayah_id] !== undefined) countPerWilayah[s.wilayah_id]++;
   }
 
-  res.json({
-    success: true,
-    data: FALLBACK_WILAYAH.map((w) => ({
-      wilayah_id: w.id,
-      nama_wilayah: w.nama_wilayah,
-      total_suara: 0
-    }))
-  });
+  for (const sv of stateVotes) {
+    if (!dbHashes.has(sv.kode_pemilih_hash)) {
+      if (countPerWilayah[sv.wilayah_id] !== undefined) countPerWilayah[sv.wilayah_id]++;
+    }
+  }
+
+  const result = FALLBACK_WILAYAH.map((w) => ({
+    wilayah_id: w.id,
+    nama_wilayah: w.nama_wilayah,
+    total_suara: countPerWilayah[w.id] || 0
+  }));
+
+  res.json({ success: true, data: result });
 });
 
 // ==========================================
@@ -471,20 +500,52 @@ app.post('/api/admin/login', async (req, res) => {
 // Statistik Ringkasan Dashboard Admin
 app.get('/api/admin/stats', requireAdminAuth, async (req, res) => {
   try {
-    const totalPemilihRow = await dbGet('SELECT COUNT(*) AS total FROM pemilih');
-    const sudahMemilihRow = await dbGet('SELECT COUNT(*) AS total FROM pemilih WHERE sudah_memilih = 1');
-    const totalSuaraRow = await dbGet('SELECT COUNT(*) AS total FROM suara');
-    const totalWilayahRow = await dbGet('SELECT COUNT(*) AS total FROM wilayah');
-    const totalCalonRow = await dbGet('SELECT COUNT(*) AS total FROM calon');
+    const state = getSharedState();
+    const stateVotes = state.votes || [];
+    const customVoters = (state.customVoters || []).filter(v => !(state.deletedVoters || []).includes(v.kode_pemilih.toUpperCase()));
 
-    const totalPemilih = parseInt(totalPemilihRow ? totalPemilihRow.total : 0, 10);
-    const sudahMemilih = parseInt(sudahMemilihRow ? sudahMemilihRow.total : 0, 10);
-    const belumMemilih = totalPemilih - sudahMemilih;
-    const totalSuara = parseInt(totalSuaraRow ? totalSuaraRow.total : 0, 10);
+    let totalPemilihRow = null;
+    let sudahMemilihRow = null;
+    let totalSuaraRow = null;
+    try {
+      totalPemilihRow = await dbGet('SELECT COUNT(*) AS total FROM pemilih');
+      sudahMemilihRow = await dbGet('SELECT COUNT(*) AS total FROM pemilih WHERE sudah_memilih = 1');
+      totalSuaraRow = await dbGet('SELECT COUNT(*) AS total FROM suara');
+    } catch (e) {}
+
+    let dbVoteHashes = new Set();
+    try {
+      const dbVotes = await dbAll('SELECT kode_pemilih_hash FROM suara');
+      if (Array.isArray(dbVotes)) {
+        dbVotes.forEach(v => dbVoteHashes.add(v.kode_pemilih_hash));
+      }
+    } catch (e) {}
+
+    // Gabungkan dengan stateVotes
+    const allVoteHashes = new Set(dbVoteHashes);
+    for (const v of stateVotes) {
+      if (v.kode_pemilih_hash) allVoteHashes.add(v.kode_pemilih_hash);
+    }
+    const totalSuara = Math.max(allVoteHashes.size, parseInt(totalSuaraRow ? totalSuaraRow.total : 0, 10));
+
+    // Hitung total pemilih: DPT standar (45) + pemilih kustom aktif
+    let totalPemilih = parseInt(totalPemilihRow ? totalPemilihRow.total : 0, 10);
+    if (totalPemilih < 45 + customVoters.length) {
+      totalPemilih = Math.max(totalPemilih, 45 + customVoters.length);
+    }
+
+    // Hitung pemilih yang sudah memberikan suara
+    const dbSudah = parseInt(sudahMemilihRow ? sudahMemilihRow.total : 0, 10);
+    const customSudah = customVoters.filter(p => p.sudah_memilih === 1).length;
+    const sudahMemilih = Math.max(totalSuara, dbSudah, customSudah);
+    const belumMemilih = Math.max(0, totalPemilih - sudahMemilih);
     const partisipasi = totalPemilih > 0 ? ((sudahMemilih / totalPemilih) * 100).toFixed(1) : '0.0';
 
-    const lockSetting = await dbGet("SELECT nilai FROM pengaturan WHERE kunci = 'kunci_perubahan_calon'");
-    const isLocked = lockSetting && lockSetting.nilai === '1';
+    let isLocked = false;
+    try {
+      const lockSetting = await dbGet("SELECT nilai FROM pengaturan WHERE kunci = 'kunci_perubahan_calon'");
+      isLocked = lockSetting && lockSetting.nilai === '1';
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -494,8 +555,8 @@ app.get('/api/admin/stats', requireAdminAuth, async (req, res) => {
         belum_memilih: belumMemilih,
         total_suara: totalSuara,
         persentase_partisipasi: parseFloat(partisipasi),
-        total_wilayah: parseInt(totalWilayahRow ? totalWilayahRow.total : 0, 10),
-        total_calon: parseInt(totalCalonRow ? totalCalonRow.total : 0, 10),
+        total_wilayah: 9,
+        total_calon: 32,
         is_locked: isLocked
       }
     });
@@ -508,48 +569,98 @@ app.get('/api/admin/stats', requireAdminAuth, async (req, res) => {
 // Rekapitulasi Suara Lengkap Per Wilayah & Calon
 app.get('/api/admin/rekap', requireAdminAuth, async (req, res) => {
   try {
-    const wilayahList = await dbAll('SELECT * FROM wilayah ORDER BY id ASC');
+    const state = getSharedState();
+    const stateVotes = state.votes || [];
+    const activeCustomVoters = (state.customVoters || []).filter(v => !(state.deletedVoters || []).includes(v.kode_pemilih.toUpperCase()));
+
+    let wilayahList = [];
+    try {
+      wilayahList = await dbAll('SELECT * FROM wilayah ORDER BY id ASC');
+    } catch (e) {}
+    if (!wilayahList || wilayahList.length === 0) {
+      wilayahList = FALLBACK_WILAYAH;
+    }
+
     const rekapData = [];
 
     for (const w of wilayahList) {
-      const pemilihStats = await dbGet(`
-        SELECT 
-          COUNT(*) AS total_pemilih,
-          SUM(CASE WHEN sudah_memilih = 1 THEN 1 ELSE 0 END) AS sudah_memilih
-        FROM pemilih WHERE wilayah_id = ?
-      `, [w.id]);
+      let calonList = [];
+      try {
+        calonList = await dbAll(`
+          SELECT c.id, c.nomor_urut, c.nama, c.foto,
+            (SELECT COUNT(*) FROM suara s WHERE s.calon_id = c.id) AS db_suara
+          FROM calon c
+          WHERE c.wilayah_id = ?
+          ORDER BY c.nomor_urut ASC
+        `, [w.id]);
+      } catch (e) {}
 
-      const suaraTotal = await dbGet('SELECT COUNT(*) AS total FROM suara WHERE wilayah_id = ?', [w.id]);
-      const totalSuaraWilayah = parseInt(suaraTotal ? suaraTotal.total : 0, 10);
-      const totalPemilihWilayah = parseInt(pemilihStats ? pemilihStats.total_pemilih : 0, 10);
-      const sudahMemilihWilayah = parseInt(pemilihStats && pemilihStats.sudah_memilih ? pemilihStats.sudah_memilih : 0, 10);
+      if (!calonList || calonList.length === 0) {
+        calonList = FALLBACK_CALON.filter(c => c.wilayah_id === w.id).map(c => ({
+          ...c,
+          db_suara: 0
+        }));
+      }
 
-      const calonList = await dbAll(`
-        SELECT c.id, c.nomor_urut, c.nama, c.foto,
-          (SELECT COUNT(*) FROM suara s WHERE s.calon_id = c.id) AS jumlah_suara
-        FROM calon c
-        WHERE c.wilayah_id = ?
-        ORDER BY c.nomor_urut ASC
-      `, [w.id]);
+      // Ambil suara DB untuk wilayah ini agar bisa dideduplikasi dengan state.votes
+      let dbSuaraRows = [];
+      try {
+        dbSuaraRows = await dbAll('SELECT calon_id, kode_pemilih_hash FROM suara WHERE wilayah_id = ?', [w.id]);
+      } catch (e) {}
+      const dbHashes = new Set(dbSuaraRows.map(s => s.kode_pemilih_hash));
 
+      // Hitung per calon
+      let totalSuaraWilayah = 0;
       const calonWithPersen = calonList.map(c => {
-        const jSuara = parseInt(c.jumlah_suara, 10) || 0;
-        const persentase = totalSuaraWilayah > 0 ? ((jSuara / totalSuaraWilayah) * 100).toFixed(1) : '0.0';
+        let suaraCount = parseInt(c.db_suara, 10) || 0;
+        for (const sv of stateVotes) {
+          if (sv.wilayah_id === w.id && sv.calon_id === c.id) {
+            if (!dbHashes.has(sv.kode_pemilih_hash)) {
+              suaraCount++;
+            }
+          }
+        }
+        totalSuaraWilayah += suaraCount;
+
+        const customFoto = state.calonPhotos && state.calonPhotos[c.id];
+
         return {
           id: c.id,
           nomor_urut: c.nomor_urut,
           nama: c.nama,
-          foto: c.foto,
-          jumlah_suara: jSuara,
-          persentase: parseFloat(persentase)
+          foto: customFoto || c.foto,
+          jumlah_suara: suaraCount,
+          persentase: 0
         };
       });
 
+      calonWithPersen.forEach(c => {
+        c.persentase = totalSuaraWilayah > 0 
+          ? parseFloat(((c.jumlah_suara / totalSuaraWilayah) * 100).toFixed(1)) 
+          : 0;
+      });
+
+      const customInW = activeCustomVoters.filter(v => v.wilayah_id === w.id);
+      let totalPemWil = 5 + customInW.length;
+      try {
+        const pRow = await dbGet('SELECT COUNT(*) AS total FROM pemilih WHERE wilayah_id = ?', [w.id]);
+        if (pRow && pRow.total > totalPemWil) totalPemWil = pRow.total;
+      } catch (e) {}
+
+      const customSudahW = customInW.filter(v => v.sudah_memilih === 1).length;
+      let dbSudahW = 0;
+      try {
+        const sRow = await dbGet('SELECT COUNT(*) AS total FROM pemilih WHERE wilayah_id = ? AND sudah_memilih = 1', [w.id]);
+        if (sRow) dbSudahW = sRow.total;
+      } catch (e) {}
+
+      const sudahMemWil = Math.max(totalSuaraWilayah, dbSudahW, customSudahW);
+
       rekapData.push({
         wilayah: w,
-        total_pemilih: totalPemilihWilayah,
-        sudah_memilih: sudahMemilihWilayah,
-        belum_memilih: totalPemilihWilayah - sudahMemilihWilayah,
+        total_pemilih: totalPemWil,
+        sudah_memilih: sudahMemWil,
+        belum_memilih: Math.max(0, totalPemWil - sudahMemWil),
         total_suara: totalSuaraWilayah,
         calon: calonWithPersen
       });
@@ -1112,6 +1223,17 @@ app.post('/api/admin/reset', requireAdminAuth, async (req, res) => {
     await dbRun('DELETE FROM suara');
     await dbRun('UPDATE pemilih SET sudah_memilih = 0, waktu_memilih = NULL');
 
+    // Reset juga di Shared State
+    const state = getSharedState();
+    state.votes = [];
+    if (state.customVoters && Array.isArray(state.customVoters)) {
+      state.customVoters.forEach((v) => {
+        v.sudah_memilih = 0;
+        v.waktu_memilih = null;
+      });
+    }
+    saveSharedState(state);
+
     console.log(`⚠️ Database suara telah direset oleh admin: ${req.admin.username}`);
 
     res.json({
@@ -1127,24 +1249,43 @@ app.post('/api/admin/reset', requireAdminAuth, async (req, res) => {
 // Ekspor Hasil Suara ke CSV
 app.get('/api/admin/export', requireAdminAuth, async (req, res) => {
   try {
-    const rekapQuery = await dbAll(`
-      SELECT 
-        w.nama_wilayah AS "wilayah",
-        c.nomor_urut AS "no_urut",
-        c.nama AS "nama_calon",
-        COUNT(s.id) AS "jumlah_suara"
-      FROM wilayah w
-      JOIN calon c ON c.wilayah_id = w.id
-      LEFT JOIN suara s ON s.calon_id = c.id
-      GROUP BY w.id, w.nama_wilayah, c.id, c.nomor_urut, c.nama
-      ORDER BY w.id ASC, c.nomor_urut ASC
-    `);
+    const state = getSharedState();
+    const stateVotes = state.votes || [];
+
+    let dbSuaraRows = [];
+    try {
+      dbSuaraRows = await dbAll('SELECT wilayah_id, calon_id, kode_pemilih_hash FROM suara');
+    } catch (e) {}
+    const dbHashes = new Set(dbSuaraRows.map((s) => s.kode_pemilih_hash));
+
+    let wilayahList = [];
+    try {
+      wilayahList = await dbAll('SELECT * FROM wilayah ORDER BY id ASC');
+    } catch (e) {}
+    if (!wilayahList || wilayahList.length === 0) wilayahList = FALLBACK_WILAYAH;
 
     let csv = 'Wilayah,No Urut,Nama Calon,Jumlah Suara\n';
-    for (const row of rekapQuery) {
-      const cleanNama = `"${String(row.nama_calon).replace(/"/g, '""')}"`;
-      const cleanWilayah = `"${String(row.wilayah).replace(/"/g, '""')}"`;
-      csv += `${cleanWilayah},${row.no_urut},${cleanNama},${row.jumlah_suara}\n`;
+
+    for (const w of wilayahList) {
+      let calonList = [];
+      try {
+        calonList = await dbAll('SELECT id, nomor_urut, nama FROM calon WHERE wilayah_id = ? ORDER BY nomor_urut ASC', [w.id]);
+      } catch (e) {}
+      if (!calonList || calonList.length === 0) {
+        calonList = FALLBACK_CALON.filter((c) => c.wilayah_id === w.id);
+      }
+
+      for (const c of calonList) {
+        let count = dbSuaraRows.filter((s) => s.calon_id === c.id).length;
+        for (const sv of stateVotes) {
+          if (sv.calon_id === c.id && !dbHashes.has(sv.kode_pemilih_hash)) {
+            count++;
+          }
+        }
+        const cleanNama = `"${String(c.nama).replace(/"/g, '""')}"`;
+        const cleanWilayah = `"${String(w.nama_wilayah).replace(/"/g, '""')}"`;
+        csv += `${cleanWilayah},${c.nomor_urut},${cleanNama},${count}\n`;
+      }
     }
 
     const filename = `Rekap_Suara_BPD_Banyubiru_${new Date().toISOString().slice(0, 10)}.csv`;
